@@ -23,11 +23,32 @@ THE SOFTWARE.
 */
 package com.sortable.challenge
 
+import com.sortable.challenge.TokenizationUtils._
+import SimpleLogger.debug
 /**
  * Case classes for convenient representation of underlying data.
  */
 case class Product(name: String, manufacturer: String, model: String, family: Option[String]) extends DataHolder
+{
+	private val delimiters = Set(' ', '_', '-', '/')
+
+	private val nameTokens: Seq[Token] = tokenize(name, delimiters)
+	private val manufacturerTokens: Seq[Token] = tokenize(manufacturer, delimiters)
+	private val modelTokens: Seq[Token] = tokenize(model, delimiters)
+	private val familyTokens: Option[Seq[Token]] = family map {f => tokenize(f, delimiters)}
+}
 
 case class Listing(title: String, manufacturer: String, currency: String, price: BigDecimal) extends DataHolder
 
 trait DataHolder
+{
+	def tokenize(str: String, delimiters: Set[Char]): Seq[Token] =
+	{
+		val tokens = tokenizeWithIndex(str, delimiters) map strictTrimToken
+		if (tokens.contains(None)) {
+			debug("Was not able to clean some of the tokens. Original string %s", str)
+		}
+		tokens.flatten
+	}
+}
+

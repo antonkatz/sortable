@@ -42,9 +42,9 @@ object JsonUtils {
 		conversionIterator(jsonLines, { productJson: JsValue =>
 			val args = Seq(productJson \ "product_name", productJson \ "manufacturer", productJson \ "model")
 					.filterNot(isInvalidJsonInst)
-					.map(_.toString())
+					.map(_.as[String])
 			// sometimes is missing in JSON
-			val family = Option(productJson \ "family") filterNot isInvalidJsonInst map {_.toString()}
+			val family = Option(productJson \ "family") filterNot isInvalidJsonInst map {_.as[String]}
 			if (args.length == 3) {
 				Option(new Product(args(0), args(1), args(2), family))
 			} else {
@@ -63,7 +63,7 @@ object JsonUtils {
 		conversionIterator(jsonLines, { listingJson: JsValue =>
 			val args = Seq(listingJson \ "title", listingJson \ "manufacturer", listingJson \ "currency")
 					.filterNot(isInvalidJsonInst)
-					.map(_.toString())
+					.map(_.as[String])
 			Option(listingJson \ "price") collect {
 				case price: JsNumber if args.length == 3 => new Listing(args(0), args(1), args(2), price.value)
 				case price: JsString if Try(price.value.toDouble).isSuccess && args.length == 3 =>

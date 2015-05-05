@@ -23,9 +23,8 @@ THE SOFTWARE.
 */
 package com.sortable.challenge
 
-// fixme reword
 /**
- * No need for importing a logging library for such simple application.
+ * Eliminates the need for a logging library in such simple application.
  */
 object SimpleLogger {
   private val errorsOn = true
@@ -36,5 +35,5 @@ object SimpleLogger {
   def warn(msg: String, args: String*) = log("Warn", msg, args:_*)
   def debug(msg: String, args: String*) = log("Debug", msg, args:_*)
 
-  private def log(level: String, msg: String, args: String*) = (level + ": \t" + msg).format(args)
+  private def log(level: String, msg: String, args: String*) = println({level + ": \t" + msg} format args)
 }
