@@ -36,6 +36,11 @@ case class Product(name: String, manufacturer: String, model: String, family: Op
 	private val manufacturerTokens: Seq[Token] = tokenize(manufacturer, delimiters)
 	private val modelTokens: Seq[Token] = tokenize(model, delimiters)
 	private val familyTokens: Option[Seq[Token]] = family map {f => tokenize(f, delimiters)}
+
+	def getNameTokens = nameTokens
+	def getManufacturerTokens = manufacturerTokens
+	def getModelTokens = modelTokens
+	def getFamilyTokens = familyTokens
 }
 
 case class Listing(title: String, manufacturer: String, currency: String, price: BigDecimal) extends DataHolder

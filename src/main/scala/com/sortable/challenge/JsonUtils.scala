@@ -33,7 +33,7 @@ import scala.util.Try
  */
 object JsonUtils {
 	/**
-	 * Validates that JSON is valid, and then creates [[Product]] instances.
+	 * Checks that JSON is a valid product representation, and then creates [[Product]] instances.
 	 * @param jsonLines
 	 * @return if all JSON objects that supposed to represent products are valid returns a sequence of all those objects
 	 *         converted into [[Product]]. If a single JSON object is invalid, returns [[None]]
@@ -54,7 +54,7 @@ object JsonUtils {
 
 
 	/**
-	 * Validates that JSON is valid, and then creates [[Listing]] instances.
+	 * Checks that JSON is a valid listing representation, and then creates [[Listing]] instances.
 	 * @param jsonLines
 	 * @return if all JSON objects that supposed to represent listings are valid returns a sequence of all those objects
 	 *         converted into [[Listing]]. If a single JSON object is invalid, returns [[None]]

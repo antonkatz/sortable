@@ -23,6 +23,8 @@ THE SOFTWARE.
 */
 package com.sortable.challenge
 
+import com.sortable.challenge.matching.MatchTest
+
 import scala.io.Source
 import com.sortable.challenge.{SimpleLogger => log}
 import JsonUtils.{convertToProducts, convertToListings}
@@ -47,6 +49,7 @@ object Main {
     }
   }
 
+	// fixme change into iterables / iterators
   private def loadDataFromFiles(productPath: String, listingPath: String): Option[(Seq[Product], Seq[Listing])] = {
     val productContents = Source.fromFile(productPath).getLines()
     val listingContents = Source.fromFile(listingPath).getLines()
@@ -55,4 +58,13 @@ object Main {
 
     products map {p => listings map {l => (p, l)}} flatten
   }
+
+	private def findMatches(products: Seq[Product], listings: Seq[Listing]): Map[Product, Seq[MatchTest]] =
+		products map {p => p -> findMatches(p, listings)} toMap
+
+	/** Finds all listings that match a particular product. */
+  private def findMatches(product: Product, listing: Seq[Listing]): Seq[MatchTest] = {
+		// using fold to reduce the number of times the seq has to be rebuilt
+		listing foldLeft Seq[MatchTest]() {(seq, listing) => }
+	}
 }
