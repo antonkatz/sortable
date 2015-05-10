@@ -41,6 +41,9 @@ case class Product(name: String, manufacturer: String, model: String, family: Op
 	def getManufacturerTokens = manufacturerTokens
 	def getModelTokens = modelTokens
 	def getFamilyTokens = familyTokens
+
+	def getTotalTokenCount =
+		nameTokens.size + manufacturerTokens.size + modelTokens.size + familyTokens.getOrElse(Seq()).size
 }
 
 case class Listing(title: String, manufacturer: String, currency: String, price: BigDecimal) extends DataHolder

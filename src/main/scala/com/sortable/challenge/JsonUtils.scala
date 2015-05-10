@@ -38,7 +38,7 @@ object JsonUtils {
 	 * @return if all JSON objects that supposed to represent products are valid returns a sequence of all those objects
 	 *         converted into [[Product]]. If a single JSON object is invalid, returns [[None]]
 	 */
-	def convertToProducts(jsonLines: Seq[String]): Option[Seq[Product]] =
+	def convertToProducts(jsonLines: Seq[String]): Option[Set[Product]] =
 		conversionIterator(jsonLines, { productJson: JsValue =>
 			val args = Seq(productJson \ "product_name", productJson \ "manufacturer", productJson \ "model")
 					.filterNot(isInvalidJsonInst)
@@ -59,7 +59,7 @@ object JsonUtils {
 	 * @return if all JSON objects that supposed to represent listings are valid returns a sequence of all those objects
 	 *         converted into [[Listing]]. If a single JSON object is invalid, returns [[None]]
 	 */
-	def convertToListings(jsonLines: Seq[String]): Option[Seq[Listing]] =
+	def convertToListings(jsonLines: Seq[String]): Option[Set[Listing]] =
 		conversionIterator(jsonLines, { listingJson: JsValue =>
 			val args = Seq(listingJson \ "title", listingJson \ "manufacturer", listingJson \ "currency")
 					.filterNot(isInvalidJsonInst)
@@ -86,7 +86,7 @@ object JsonUtils {
 	 * @return a sequence of instances of [[DataHolder]] if all conversions were successful; otherwise [[None]]
 	 */
 	private def conversionIterator[H <: DataHolder](jsonLines: Seq[String], converter: (JsValue) => Option[H]):
-	Option[Seq[H]] = {
+	Option[Set[H]] = {
 		var hasInvalid = false
 		val results: Seq[Option[H]] = jsonLines map { entryString =>
 			Json.parse(entryString) match {
@@ -99,6 +99,6 @@ object JsonUtils {
 				case _ => None
 			}
 		}
-		if (hasInvalid) None else Option(results.flatten)
+		if (hasInvalid) None else Option(results.flatten.toSet)
 	}
 }

@@ -24,17 +24,32 @@ THE SOFTWARE.
 package com.sortable.challenge.matching
 
 import com.sortable.challenge.matching.TokenMatchType._
-import com.sortable.challenge.matching.TokenMatchingUtils._
+import com.sortable.challenge.matching.MatchingUtils._
 import com.sortable.challenge.{Listing, Product}
+
+import scala.language.postfixOps
 
 /**
  * Tests whether a product and a listing are a match.
  */
 case class MatchTest(product: Product, listing: Listing) {
-	var tokenMatches = doMatching(product.getNameTokens, listing.title, nameToTitle) ++
-			doMatching(product.getManufacturerTokens, listing.title, manufacturerToTitle) ++
-			doMatching(product.getModelTokens, listing.title, modelToTitle) ++
-			doMatching(product.getManufacturerTokens, listing.manufacturer, manufacturerToManufacturer)
+	private var allTokenMatches = matchTokens(product.getNameTokens, listing.title, nameToTitle) ++
+			matchTokens(product.getManufacturerTokens, listing.title, manufacturerToTitle) ++
+			matchTokens(product.getModelTokens, listing.title, modelToTitle) ++
+			matchTokens(product.getManufacturerTokens, listing.manufacturer, manufacturerToManufacturer)
+	// family might not be present
+	product.getFamilyTokens map {tokens =>
+		matchTokens(tokens, listing.title, familyToTitle)} foreach {allTokenMatches ++= _}
+	private val groupedMatches = allTokenMatches groupBy(_._1)
 
-	product.getFamilyTokens map {tokens => doMatching(tokens, listing.title, familyToTitle)} map {tokenMatches ++ _}
+	private val clusters = groupedMatches mapValues MatchingUtils.findTightestCluster
+	private val orderChanges = clusters mapValues MatchingUtils.getOrderChangeAroundPivot
+	private val orderTally = {orderChanges mapValues {_ map (o => Math.pow(o._2, 2)) sum} values}.toSeq sum
+
+	private val countMissing = allTokenMatches.size - product.getTotalTokenCount
+	
+	/**
+	 * Whether this tests was successful (the product and the listing are a match).
+	 */
+	def isMatch: Boolean = true
 }
