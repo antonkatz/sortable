@@ -65,7 +65,7 @@ object JsonUtils {
 					.filterNot(isInvalidJsonInst)
 					.map(_.as[String])
 			Option(listingJson \ "price") collect {
-				case price: JsNumber if args.length == 3 => new Listing(args(0), args(1), args(2), price.value)
+				case price: JsNumber if args.length == 3 => new Listing(args(0), args(1), args(2), price.value doubleValue())
 				case price: JsString if Try(price.value.toDouble).isSuccess && args.length == 3 =>
 					new Listing(args(0), args(1), args(2), price.value.toDouble)
 			}

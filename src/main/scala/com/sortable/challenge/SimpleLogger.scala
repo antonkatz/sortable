@@ -32,8 +32,12 @@ object SimpleLogger {
   private val debugOn = true
 
   def error(msg: String, args: String*) = log("Error", msg, args:_*)
+  def error(throwable: Throwable, msg: String, args: String*) = {
+    log("Error", msg, args:_*)
+    throwable.printStackTrace()
+  }
   def warn(msg: String, args: String*) = log("Warn", msg, args:_*)
   def debug(msg: String, args: String*) = log("Debug", msg, args:_*)
 
-  private def log(level: String, msg: String, args: String*) = println({level + ": \t" + msg} format args)
+  private def log(level: String, msg: String, args: String*) = println({level + ": \t" + msg} format(args:_*))
 }

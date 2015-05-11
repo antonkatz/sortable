@@ -30,23 +30,31 @@ import SimpleLogger.debug
  */
 case class Product(name: String, manufacturer: String, model: String, family: Option[String]) extends DataHolder
 {
+	// for easier testing
 	private val delimiters = Set(' ', '_', '-', '/')
 
 	private val nameTokens: Seq[Token] = tokenize(name, delimiters)
 	private val manufacturerTokens: Seq[Token] = tokenize(manufacturer, delimiters)
 	private val modelTokens: Seq[Token] = tokenize(model, delimiters)
 	private val familyTokens: Option[Seq[Token]] = family map {f => tokenize(f, delimiters)}
+	private val allTokens = nameTokens ++ manufacturerTokens ++ modelTokens ++ familyTokens.getOrElse(Seq())
 
 	def getNameTokens = nameTokens
 	def getManufacturerTokens = manufacturerTokens
 	def getModelTokens = modelTokens
 	def getFamilyTokens = familyTokens
 
-	def getTotalTokenCount =
-		nameTokens.size + manufacturerTokens.size + modelTokens.size + familyTokens.getOrElse(Seq()).size
+	def getTotalTokenCount = allTokens.size
+	def getNumberTokenCount = allTokens count {_._1 forall(_ isDigit)}
 }
 
-case class Listing(title: String, manufacturer: String, currency: String, price: BigDecimal) extends DataHolder
+// used double instead of BigDecimal for performance
+case class Listing(var title: String, manufacturer: String, currency: String, price: Double) extends DataHolder
+{
+	title = title toLowerCase
+
+	val adjustedPrice = PriceConverter.convert(price, currency)
+}
 
 trait DataHolder
 {
@@ -54,7 +62,7 @@ trait DataHolder
 	{
 		val tokens = tokenizeWithIndex(str, delimiters) map strictTrimToken
 		if (tokens.contains(None)) {
-			debug("Was not able to clean some of the tokens. Original string %s", str)
+			debug("Was not able to clean some of the tokens: %s", str)
 		}
 		tokens.flatten
 	}

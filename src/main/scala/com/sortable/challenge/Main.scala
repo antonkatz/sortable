@@ -24,57 +24,45 @@ THE SOFTWARE.
 package com.sortable.challenge
 
 import com.sortable.challenge.JsonUtils.{convertToListings, convertToProducts}
-import com.sortable.challenge.matching.MatchTest
-import com.sortable.challenge.{SimpleLogger => log}
+import com.sortable.challenge.matching.{ReconciliationUtils, MatchComputations}
+import com.sortable.challenge.{SimpleLogger => Log}
 
 import scala.io.Source
 import scala.language.postfixOps
-
+import scala.util.Try
 /**
  * Ties together high level functions at the entry point.
  */
 object Main {
-	def main(args: Array[String]) = {
+	def main(args: Array[String]): Unit = {
 		if (args.length != 2) {
-			log.error("Arguments should be: [products path] [listings path]")
+			Log.error("Arguments should be: [products path] [listings path]")
 			throw new IllegalArgumentException
 		}
 
 		val productPath: String = args(0)
 		val listingPath: String = args(1)
 		val data = loadDataFromFiles(productPath, listingPath) orElse {
-			log.error("Could not load the data from files.")
+			Log.error("Could not load the data from files.")
 			None
 		}
 
-		/*  Find matches.
-		Could remove listings as matches are found, but that would complicate quality analysis of the algorithm. */
-
-
+		/*  Find matches. Could remove listings as matches are found (for performance),
+		but that would complicate quality analysis of the algorithm. */
+//		val matches = data map {d => findMatches(d._1, d._2)}
+//		val matches = data map {d => findMatches(Set(d._1.toSeq.slice(20, 30).find{_.name.contains("930")} get), d._2)}
+		val matches = data map {d => ReconciliationUtils.findMatches(d._1 take 30 drop 20, d._2)}
+		matches
 
 		// check if any of the listings have been matched twice, indicating a bad algorithm
 	}
 
-	private def loadDataFromFiles(productPath: String, listingPath: String): Option[(Set[Product], Set[Listing])] = {
+	private[challenge] def loadDataFromFiles(productPath: String, listingPath: String): Option[(Set[Product], Set[Listing])] = {
 		val productContents = Source.fromFile(productPath).getLines()
 		val listingContents = Source.fromFile(listingPath).getLines()
 		val products = convertToProducts(productContents.toSeq)
 		val listings = convertToListings(listingContents.toSeq)
 
 		products map { p => listings map { l => (p, l) } } flatten
-	}
-
-	private def findMatches(products: Set[Product], listings: Set[Listing]): Map[Product, Set[MatchTest]] =
-		products map { p => p -> findMatches(p, listings) } toMap
-
-	/** Finds all listings that match a particular product. */
-	private def findMatches(product: Product, listings: Set[Listing]): Set[MatchTest] = {
-		// using fold to reduce the number of times the seq has to be rebuilt
-		listings.foldLeft {
-			Set[MatchTest]()
-		} { (seq: Set[MatchTest], listing: Listing) =>
-			val test = new MatchTest(product, listing)
-			if (test.isMatch) seq + test else seq
-		}
 	}
 }

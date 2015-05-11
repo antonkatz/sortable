@@ -29,17 +29,35 @@ package com.sortable.challenge
 object TokenizationUtils {
 	type Token = (String, Int)
 
-	private val cleanPattern = "[a-z0-9]+".r
+	private val cleanPattern = "[a-z0-9.]+".r
 
+	private val numberPattern = "[0-9]+".r
+
+	// also splits tokens with digits into two tokens
 	def tokenizeWithIndex(str: String, delimiters: Set[Char], offset: Int = 0): Seq[Token] = {
 		val tokens = findNext(str, delimiters) match {
-			case None => Seq((str, offset))
+			case None => splitTokenWithNumber (str, offset)
 			case Some(tokenEnd) =>
 				val token = str.substring(0, tokenEnd).trim
 				val remaining = str.substring(tokenEnd + 1)
-				(token, offset) +: tokenizeWithIndex(remaining, delimiters, offset + tokenEnd + 1)
+				val generated = splitTokenWithNumber (token, offset)
+				generated ++ tokenizeWithIndex(remaining, delimiters, offset + tokenEnd + 1)
 		}
-		tokens filterNot {_._1.isEmpty}
+		tokens filterNot {_._1 isEmpty}
+	}
+
+	// always splits digits into two tokens, no matter how many groups exist
+	private[challenge] def splitTokenWithNumber(token: Token): Seq[Token] = {
+		token._1 find {_ isDigit} match {
+			case Some(d) =>
+				val firstNumber = if (token._1.head isDigit) numberPattern findFirstIn token._1 get else ""
+				val firstNumberOffset = firstNumber.length
+				val i = token._1 indexOf d
+				val offset = token._2
+				Seq((token._1 substring(0, i + firstNumberOffset), offset),
+					(token._1 substring(i + firstNumberOffset), i + offset + firstNumberOffset))
+			case None => Seq(token)
+		}
 	}
 
 	/** Finds the closest next occurrence of any delimiter from the set. */

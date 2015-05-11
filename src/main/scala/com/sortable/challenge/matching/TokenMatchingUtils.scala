@@ -25,24 +25,41 @@ package com.sortable.challenge.matching
 
 import com.sortable.challenge.TokenizationUtils.Token
 import com.sortable.challenge.matching.TokenMatchType.TokenMatchType
+import com.sortable.challenge.Product
 
 import scala.language.postfixOps
 
 /**
  * Methods for finding positions of tokens across attributes
  */
-object MatchingUtils {
+object TokenMatchingUtils {
 	/**
 	 * Type, position in the original attribute, position in the destination (searched in) attribute/string.
 	 * The positions are the start positions of a token string inside a string, not relative positions to each other.
 	 * The second element of the triple can serve as id.
+	 *
+	 * FIXME
+	 * 4th element is the token string
+	 * 5th is the destination string
 	 */
-	type TokenMatch = (TokenMatchType, Int, Int)
-	/**
-	 * Position of the token in the original string relative to the first token in a sequence; position in the
-	 * destination string.
-	 */
-	type RelativeTokenMatch = (Int, Int)
+	type TokenMatch = (TokenMatchType, Int, Int, String)
+
+	/** Removes [[TokenMatch]]es that have been found within other [[TokenMatch]]es. */
+	def filterOvermatched(tokens: Seq[TokenMatch]): Seq[TokenMatch] = {
+		val ranges = tokens map { t => t ->(t._3, t._3 + t._4.length) }
+		ranges filterNot { tr =>
+			ranges.exists(r => tr._2._1 >= r._2._1 && tr._2._2 <= r._2._2 && r._1 != tr._1)
+		} map { _._1 }
+	}
+
+	/** @return Average variance proportional to the average length of the tokens. */
+	def computeRelativePositionalVariance(tokens: Iterable[TokenMatch]) = {
+		val size = tokens.size toDouble
+		val pos = tokens map { _._3 }
+		val avg = pos.sum / size
+		val avgLength = (tokens map { _._4 length } sum) / size
+		((pos map { p => Math.pow(p - avg, 2) } sum) / size) / avgLength
+	}
 
 	/**
 	 * Given a sequence of [[TokenMatch]] (eg. an original phrase), calculates the order change of tokens in the
@@ -54,7 +71,7 @@ object MatchingUtils {
 	 */
 	def getOrderChangeAroundPivot(matches: Iterable[TokenMatch]): Map[TokenMatch, Int] = {
 		val wordIndexed = toWordIndex(matches toSeq)
-		val destinationPivotPosition = {wordIndexed find {t => t._2._1 == 0} get}._2._2
+		val destinationPivotPosition = {wordIndexed find { t => t._2._1 == 0 } get }._2._2
 		wordIndexed map { t => t._1 -> (t._2._2 - t._2._1 - destinationPivotPosition) }
 	}
 
@@ -105,8 +122,6 @@ object MatchingUtils {
 			case Nil => Nil :: Nil
 		}
 
-	//	def countMissing
-
 	/**
 	 * Finds all positions of a sequence of tokens inside a destination string.
 	 * @param matchType example usage: indicating which attribute (name, manufacturer, etc.) a token came from and
@@ -117,12 +132,20 @@ object MatchingUtils {
 	def matchTokens(tokens: Seq[Token], destination: String, matchType: TokenMatchType): Seq[TokenMatch] =
 		tokens map { t =>
 			val (tokenStr, index) = t
-			findAllWithIndex(tokenStr, destination) map { destIndex => (matchType, index, destIndex) }
+			findAllWithIndex(tokenStr, destination) map { destIndex => (matchType, index, destIndex, tokenStr) }
 		} flatten
 
 	/** Finds all positions of a string in another string. */
-	private def findAllWithIndex(what: String, in: String): Seq[Int] = in indexOf what match {
-		case -1 => Seq()
-		case pos => pos +: findAllWithIndex(what, in substring pos + 1)
+	private def findAllWithIndex(what: String, in: String): Seq[Int] = {
+		// non-recursive form used for performance (couldn't call-tail optimize)
+		var offset = 0
+		var lastIndex = in indexOf what
+		var indices = Seq[Int]()
+		while (lastIndex != -1) {
+			indices :+= lastIndex
+			offset = lastIndex + 1
+			lastIndex = in indexOf(what, offset)
+		}
+		indices
 	}
 }
