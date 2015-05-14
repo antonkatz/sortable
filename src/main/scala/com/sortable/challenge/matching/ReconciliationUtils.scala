@@ -41,8 +41,6 @@ object ReconciliationUtils {
     }
   }
 
-
-
   def findMatches(products: Set[Product], listings: Set[Listing]): Map[Product, Iterable[MatchComputations]] =
     products.par.map({ p => p -> findConcreteMatches(p, listings) }).toList.toMap
 

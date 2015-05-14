@@ -30,28 +30,24 @@ import SimpleLogger.debug
  */
 case class Product(name: String, manufacturer: String, model: String, family: Option[String]) extends DataHolder
 {
-	// for easier testing
 	private val delimiters = Set(' ', '_', '-', '/')
 
 	private val nameTokens: Seq[Token] = tokenize(name, delimiters)
 	private val manufacturerTokens: Seq[Token] = tokenize(manufacturer, delimiters)
 	private val modelTokens: Seq[Token] = tokenize(model, delimiters)
 	private val familyTokens: Option[Seq[Token]] = family map {f => tokenize(f, delimiters)}
-	private val allTokens = nameTokens ++ manufacturerTokens ++ modelTokens ++ familyTokens.getOrElse(Seq())
 
 	def getNameTokens = nameTokens
 	def getManufacturerTokens = manufacturerTokens
 	def getModelTokens = modelTokens
-	def getFamilyTokens = familyTokens
-
-	def getTotalTokenCount = allTokens.size
-	def getNumberTokenCount = allTokens count {_._1 forall(_ isDigit)}
+	def getFamilyTokens = familyTokens getOrElse Seq()
 }
 
 // used double instead of BigDecimal for performance
-case class Listing(var title: String, manufacturer: String, currency: String, price: Double) extends DataHolder
+case class Listing(var title: String, var manufacturer: String, currency: String, price: Double) extends DataHolder
 {
-	title = title toLowerCase
+	title = title.toLowerCase
+	manufacturer = manufacturer.toLowerCase
 
 	val adjustedPrice = PriceConverter.convert(price, currency)
 }

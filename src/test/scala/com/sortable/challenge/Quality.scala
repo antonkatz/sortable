@@ -5,7 +5,7 @@ import com.sortable.challenge.matching.ReconciliationUtils._
 /**
  * Testing that recall is up to par.
  */
-class Recall extends FlatSpec with Matchers {
+class Quality extends FlatSpec with Matchers {
   val productPath: String = "data/products.txt"
   val listingPath: String = "data/listings.txt"
   val data = Main.loadDataFromFiles(productPath, listingPath)
@@ -24,7 +24,7 @@ class Recall extends FlatSpec with Matchers {
     matches.get should have size 28
   }
 
-  "Olympus Stylus 7010" should "have 22 matches" in {
+  "Olympus Stylus 7010" should "have 22 (-1) matches" in {
     val s7010 = data flatMap {_._1 find(p => p.model == "7010" && p.manufacturer == "Olympus")}
     val matches = s7010 map {p => findConcreteMatches(p, data.get._2)}
 
@@ -32,10 +32,25 @@ class Recall extends FlatSpec with Matchers {
     matches.get should have size (22 - 1)
   }
 
-  "Nikon S640" should "have _ matches" in {
+  "Nikon S640" should "have 13 matches" in {
     val s640 = data flatMap {_._1 find(p => p.model == "S640" && p.manufacturer == "Nikon")}
     val matches = s640 map {p => findConcreteMatches(p, data.get._2)}
 
     matches.get should have size 13
+  }
+
+  "Sanyo DSC-SX1Z" should "have no matches" in {
+    val sx1z = data flatMap {_._1 find(p => p.model == "DSC-SX1Z" && p.manufacturer == "Sanyo")}
+    val matches = sx1z map {p => findConcreteMatches(p, data.get._2)}
+
+    // couldn't find any matches by hand
+    matches.get shouldBe empty
+  }
+
+  "Ricoh CX2" should "have 19 matches" in {
+    val cx2 = data flatMap {_._1 find(p => p.model == "CX2" && p.manufacturer == "Ricoh")}
+    val matches = cx2 map {p => findConcreteMatches(p, data.get._2)}
+
+    matches.get should have size 19
   }
 }
