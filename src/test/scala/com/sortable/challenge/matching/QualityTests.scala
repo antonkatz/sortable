@@ -2,10 +2,11 @@ package com.sortable.challenge.matching
 
 import com.sortable.challenge.Main
 import org.scalatest.{FlatSpec, Matchers}
+
 /**
- * Testing that recall is up to par.
+ * Testing that recall is up to par. These are not good tests for precision.
  */
-class Quality extends FlatSpec with Matchers {
+class QualityTests extends FlatSpec with Matchers {
   val productPath: String = "data/products.txt"
   val listingPath: String = "data/listings.txt"
   val data = Main.loadDataFromFiles(productPath, listingPath)
@@ -16,7 +17,6 @@ class Quality extends FlatSpec with Matchers {
 
     // 1 filtered by price, 2 by model being too far from manufacturer
     matches.get.size should be (97 - 3)
-    //data.get._2.filter(l => l.title.contains("pentax") && (l.title.contains("k") && l.title.contains("x"))).map(new MatchComputations(kx.get, _)).toSeq.diff(matches.get.toSeq)
   }
 
   "Sony S930" should "have 14 matches" in {

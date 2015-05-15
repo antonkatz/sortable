@@ -80,25 +80,6 @@ object TokenMatchingUtils {
   }
 
   /**
-   * Finds a sequence of [[TokenMatch]]es that are most closely grouped in the destination string. There is a
-   * possibility of ties occurring, but the chances are deemed insignificant.
-   * @param tokenMatches a collection of [[TokenMatch]] where tokens (from which the [[TokenMatch]]es were produced)
-   *                     can repeat
-   * @return [[TokenMatch]]es with no tokens repeating
-   */
-  def findTightestCluster(tokenMatches: Iterable[TokenMatch]): Iterable[TokenMatch] = {
-    val tokenGroups = tokenMatches groupBy (_._2) mapValues (_ toList)
-    val groupCount = tokenGroups.size
-    val combinations = produceCombinationsFromBins(tokenGroups.values toList)
-    val averagePositions = combinations map { _.map(_._3).sum.toDouble / groupCount }
-    val distances = combinations zip averagePositions map { c =>
-      val (comb, avg) = c
-      comb -> { comb map { t => Math.abs(t._3 - avg) } sum }
-    }
-    distances minBy (_._2) _1
-  }
-
-  /**
    * Given a sequence of [[TokenMatch]] (eg. an original phrase), calculates the order change of tokens in the
    * destination sequence compared to the original sequence (around a pivot - first token in original sequence).
    * @param matches a sequence of [[TokenMatch]]es of tokens that appear in the original string. A single
@@ -128,14 +109,6 @@ object TokenMatchingUtils {
       matches map (t => t -> (t._3 - destinationPivotPosition)) sortBy (_._2) zipWithIndex
     } map (t => t._1._1 -> t._2) toMap;
     originalIndices map { t => t._1 ->(t._2, destinationIndices(t._1)) } toMap
-  }
-
-  /** @return Average distance between token matches. */
-  def computeAverageDispersion(tokens: Iterable[TokenMatch]): Double = {
-    val boundaries = { tokens map { t => t._3 -> (t._3 + t._4.length) } toSeq } sortBy (_._1)
-    if (boundaries.size < 2) return 0.0
-    val gaps = boundaries.zip(boundaries.tail) map { b => b._2._1 - b._1._2 }
-    gaps.sum.toDouble / gaps.size
   }
 
   def isNumeric(tokenMatch: TokenMatch): Boolean = tokenMatch._4 forall { _ isDigit }
@@ -198,30 +171,4 @@ object TokenMatchingUtils {
     val impureZones = allRanges.zip(allRanges.tail) map { p => p._1._2 -> p._2._1 }
     impureZones count { p => in.substring(p._1, p._2).exists(_ isDigit) }
   }
-
-  /** Computes the percentage of occurrences of characters from one string (of) in a different string (to) without 
-    * replacement. */
-  def simpleSimilarity(of: String, to: String): Option[Double] = {
-    if (of.isEmpty || to.isEmpty) return None
-    val toChars = to.toLowerCase.toBuffer
-    val count: Int = of.toLowerCase.foldLeft (0) { (count: Int, char: Char) =>
-      val index = toChars indexOf char
-      if (index > -1) {
-        toChars.remove(index)
-        count + 1
-      } else count
-    }
-    Option(count.toDouble / of.length)
-  }
-
-  private[matching] def produceCombinationsFromBins[T](choiceBins: List[List[T]]): List[List[T]] =
-    choiceBins match {
-      case head :: tail =>
-        val tailComb = produceCombinationsFromBins(tail)
-        tailComb map (t =>
-          head map { h =>
-            h :: t
-          }) flatten
-      case Nil => Nil :: Nil
-    }
 }

@@ -1,10 +1,54 @@
 package com.sortable.challenge.matching
 
+import com.sortable.challenge.matching.TokenMatchingUtils.TokenMatch
+
 /**
  * Functions for testing and scoring matches between products and listings.
  * These are somewhat algorithm dependant.
  */
 object AlgorithmUtils {
+  /**
+   * Finds a sequence of [[TokenMatch]]es that are most closely grouped in the destination string. There is a
+   * possibility of ties occurring, but the chances are deemed insignificant.
+   * @param tokenMatches a collection of [[TokenMatch]] where tokens (from which the [[TokenMatch]]es were produced)
+   *                     can repeat
+   * @return [[TokenMatch]]es with no tokens repeating
+   */
+  def findTightestCluster(tokenMatches: Iterable[TokenMatch]): Iterable[TokenMatch] = {
+    val tokenGroups = tokenMatches groupBy (_._2) mapValues (_ toList)
+    val groupCount = tokenGroups.size
+    val combinations = produceCombinationsFromBins(tokenGroups.values toList)
+    val averagePositions = combinations map { _.map(_._3).sum.toDouble / groupCount }
+    val distances = combinations zip averagePositions map { c =>
+      val (comb, avg) = c
+      comb -> { comb map { t => Math.abs(t._3 - avg) } sum }
+    }
+    distances minBy (_._2) _1
+  }
+
+  /** @return Average distance between token matches. */
+  def computeAverageDispersion(tokens: Iterable[TokenMatch]): Double = {
+    val boundaries = { tokens map { t => t._3 -> (t._3 + t._4.length) } toSeq } sortBy (_._1)
+    if (boundaries.size < 2) return 0.0
+    val gaps = boundaries.zip(boundaries.tail) map { b => b._2._1 - b._1._2 }
+    gaps.sum.toDouble / gaps.size
+  }
+
+  /** Computes the percentage of occurrences of characters from one string (of) in a different string (to) without
+    * replacement. */
+  def simpleSimilarity(of: String, to: String): Option[Double] = {
+    if (of.isEmpty || to.isEmpty) return None
+    val toChars = to.toLowerCase.toBuffer
+    val count: Int = of.toLowerCase.foldLeft (0) { (count: Int, char: Char) =>
+      val index = toChars indexOf char
+      if (index > -1) {
+        toChars.remove(index)
+        count + 1
+      } else count
+    }
+    Option(count.toDouble / of.length)
+  }
+
   /** Assuming sample data, rather than the whole population. */
   private def computeSD(iterable: Iterable[Double]): Double = {
     val size = iterable.size
@@ -38,4 +82,15 @@ object AlgorithmUtils {
       case _ => matches
     }
   }
+
+  private[matching] def produceCombinationsFromBins[T](choiceBins: List[List[T]]): List[List[T]] =
+    choiceBins match {
+      case head :: tail =>
+        val tailComb = produceCombinationsFromBins(tail)
+        tailComb map (t =>
+          head map { h =>
+            h :: t
+          }) flatten
+      case Nil => Nil :: Nil
+    }
 }

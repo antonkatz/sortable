@@ -25,6 +25,7 @@ package com.sortable.challenge.matching
 
 import com.sortable.challenge.matching.TokenMatchType._
 import com.sortable.challenge.matching.TokenMatchingUtils._
+import com.sortable.challenge.matching.AlgorithmUtils._
 import com.sortable.challenge.{Listing, Product}
 
 import scala.language.postfixOps
@@ -49,14 +50,14 @@ case class PairHolder(product: Product, listing: Listing) {
       t._1 -> matchTokens(t._2._1, t._2._2, t._1)
     } filterNot { _._2 isEmpty }
     /** GroupedMatches with matches removed where the token is contained within a different matched token. */
-    groupedMatches = TokenMatchingUtils.filterOvermatched(groupedMatches.values flatten) groupBy (_._1)
+    groupedMatches = filterOvermatched(groupedMatches.values flatten) groupBy (_._1)
 
     /** The same token in the origin string can be matched several times in the destination string. Clustering attempts
       * to address the issue of which one of those several matched positions should be considered. */
-    private[PairHolder] val clusters = groupedMatches mapValues TokenMatchingUtils.findTightestCluster
+    private[PairHolder] val clusters = groupedMatches mapValues findTightestCluster
 
     /** The reordering of matched token in the destination string as compared to origin string. */
-    private[matching] val orderChanges = clusters mapValues TokenMatchingUtils.getOrderChangeAroundPivot
+    private[matching] val orderChanges = clusters mapValues getOrderChangeAroundPivot
 
     /** Number of matched tokens, without considering how many matches a single token has within a type category.
       * If a token with the same string value is present across different [[TokenMatchType]] categories it will be 
@@ -72,14 +73,14 @@ case class PairHolder(product: Product, listing: Listing) {
 
     /** Matched tokens from an origin string will be separated by some distance, which serves as an indication of how
       * relevant the token matches are for determining if the listing is a match to a product. */
-    private val dispersions = clusters mapValues { TokenMatchingUtils.computeAverageDispersion }
+    private val dispersions = clusters mapValues { computeAverageDispersion }
     private[matching] val nonZeroDispersions = dispersions filterNot (d => d._2 < 0.001 && d._2 > -0.001)
     /** The average dispersion across all token types. */
     private[matching] val avgDispersion = (nonZeroDispersions.values sum) / nonZeroDispersions.size
   }
 
   object Model {
-    private[matching] val allMatches = Global.groupedMatches.getOrElse(TokenMatchType.modelToTitle, Iterable()) toSeq
+    private[matching] val allMatches = Global.groupedMatches.getOrElse(modelToTitle, Iterable()) toSeq
     private[matching] val uniqueMatches = Global.clusters getOrElse(modelToTitle, Iterable()) toSeq
 
     /** Model numbers often have a letter or a combination of letters acting as a 'modifier'. */
@@ -98,14 +99,13 @@ case class PairHolder(product: Product, listing: Listing) {
 
     private[matching] val orderChange = Global.orderChanges get modelToTitle
 
-    private[matching] val dispersion = Global.nonZeroDispersions.getOrElse(TokenMatchType.modelToTitle, 0.0)
+    private[matching] val dispersion = Global.nonZeroDispersions.getOrElse(modelToTitle, 0.0)
   }
 
   object Manufacturer {
     val tokenCount = product.getManufacturerTokens.size
-    val manufacturerMatchCount = Global.clusters.getOrElse(TokenMatchType.manufacturerToTitle, Set()).size
-    val manufacturerSimilarity =
-      TokenMatchingUtils.simpleSimilarity(product.manufacturer, listing.manufacturer)
+    val manufacturerMatchCount = Global.clusters.getOrElse(manufacturerToTitle, Set()).size
+    val manufacturerSimilarity = simpleSimilarity(product.manufacturer, listing.manufacturer)
   }
 
   /** Used to debug purposes. When the [[com.sortable.challenge.matching.Algorithm]] makes its decision, it will dump

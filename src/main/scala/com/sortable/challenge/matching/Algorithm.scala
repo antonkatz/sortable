@@ -76,7 +76,7 @@ object Algorithm {
 
   private def modelDispersion(p: PairHolder) = {
     val nonUnique = p.Model.allMatches diff (p.Model.uniqueMatches toSeq)
-    val dispersion = TokenMatchingUtils.computeAverageDispersion(nonUnique)
+    val dispersion = AlgorithmUtils.computeAverageDispersion(nonUnique)
     /* Generally small tokens (especially letters) are matched often which is fine. But sometimes they are part of a
     series of related models (but not the model of the product in question), which this penalty attempts to detect. */
     val extraModelDispersionPenalty =
