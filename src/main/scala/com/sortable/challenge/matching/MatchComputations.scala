@@ -77,7 +77,8 @@ case class MatchComputations(product: Product, listing: Listing) {
   /** Numeric tokens present in the model of the product that have a digit following in them in the destination
     * string. */
   private[matching] val missingModelTokensCount = product.getModelTokens.size - modelTokensMatches.size
-  private[matching] val missingModelModifiers = getMissing(modelModifierTokens toSet, modelTokensMatches toSet)
+  private[matching] val missingModelModifiers = getMissing(modelModifierTokens.toSet, modelTokensMatches.toSet)
+  private[matching] val missingModelMatches = getMissing(product.getModelTokens.toSet, modelTokensMatches.toSet)
   private[matching] val impureModelPhraseCount = getImpurePhraseCount(modelTokensMatches, listing.title)
 
   /** Matched tokens from an origin string will be separated by some distance, which serves as an indication of how
@@ -90,15 +91,31 @@ case class MatchComputations(product: Product, listing: Listing) {
 //  private[matching] val manufacturerSimilarity =
   val manufacturerSimilarity =
     TokenMatchingUtils.simpleSimilarity(product.manufacturer, listing.manufacturer)
+  val manufacturerMatchCount = clusters.getOrElse(TokenMatchType.manufacturerToTitle, Set()).size
 
+  // fixme put into different objects
   // fixme move out of here to anaylsisutils
   /** Model tokens play an important role in determining if a listing is a match to a product. Tightly clustered
     * model tokens can offset the global (average) dispersion limit. */
   private[matching] val dispersionLimitOffset =
     nonZeroDispersions.get(TokenMatchType.modelToTitle) map (d => 4 / (d + 1)) getOrElse 0.0
 
-  val missingModelModifierPenalty = missingModelModifiers map { t => 1.2 - (t._1.length / 4.0) } filter { _ > 0 } sum
+//  val missingModelModifierPenalty = missingModelModifiers map { t => 1.2 - (t._1.length / 4.0) } filter { _ > 0 } sum
+  val missingModelModifierPenalty = missingModelMatches map { t => 1.2 - (t._1.length / 4.0) } filter { _ > 0 } sum
 
+  val allModelMatches = groupedMatches.getOrElse(TokenMatchType.modelToTitle, Iterable()) toSeq
+  val modelMatchesCountsForTokens = {allModelMatches.groupBy(_._2) map {_._2.size}}.toSeq.sorted reverse
+  val extraModelDispersionPenalty = clusters.get(TokenMatchType.modelToTitle) map {mMatches =>
+    val dispersion = TokenMatchingUtils.computeAverageDispersion(allModelMatches.diff(mMatches.toSeq))
+    if (dispersion < 12 && allModelMatches.size / 2.5 > modelMatchesCountsForTokens.size) dispersion else 0.0
+  } getOrElse(0.0)
+  //    if(modelMatchesCountsForTokens.size > 1) {
+  //      val maxCountDifferenceForModel = modelMatchesCountsForTokens.head - modelMatchesCountsForTokens.tail.head
+  //      if(modelMatchesCountsForTokens.head.toDouble / modelMatchesCountsForTokens.tail.head > 2.5 && allModelMatches.size / 2.0 > modelMatchesCountsForTokens.size){
+//      } else 0.0
+//    } else 0.0
+
+  val impureModelWithOrderChangeMetric = if (modelOrderChangePenalty >= 1.0) impureModelPhraseCount / modelOrderChangePenalty else impureModelPhraseCount
   // fixme move out of here to anaylsisutils
 
   // fixme check for 0s
@@ -109,9 +126,9 @@ case class MatchComputations(product: Product, listing: Listing) {
     (missingModelTokensCount.toDouble + missingModelModifierPenalty) / product.getModelTokens.size <= 0.5,
     totalNumberTokenCount == 0 || missingNumberCount.toDouble / totalNumberTokenCount <= 0.5,
     avgDispersion < 6 + dispersionLimitOffset,
-    nonZeroDispersions.getOrElse(TokenMatchType.modelToTitle, 0.0) < 3,
-    modelModifierTokens.isEmpty || impureModelPhraseCount < modelModifierTokens.size,
-    manufacturerSimilarity.map(_ > 0.5).getOrElse(true)
+    nonZeroDispersions.getOrElse(TokenMatchType.modelToTitle, 0.0) + extraModelDispersionPenalty < 3,
+    modelModifierTokens.isEmpty || impureModelWithOrderChangeMetric < modelModifierTokens.size,
+    manufacturerMatchCount.toDouble / product.getManufacturerTokens.size > 0.5 || manufacturerSimilarity.map(_ > 0.5).getOrElse(true)
   )
 
   /**

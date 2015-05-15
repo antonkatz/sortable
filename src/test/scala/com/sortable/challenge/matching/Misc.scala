@@ -83,13 +83,13 @@ class Misc extends FlatSpec with Matchers {
   // better to get a false positive with this one, then a false negative (for example kits)
   "Matches with prices that are obviously outliers" should "be carefully filtered out" in {
     val product = new Product("", "", "", None)
-    val prices = Set(10, 11, 90, 100, 110, 105, 107, 120, 140, 145, 150, 400)
+    val prices = Set(5, 6, 90, 100, 110, 105, 107, 111, 113, 120, 140, 107, 111, 113, 120, 140, 145, 150, 400)
     val matches = prices map { p => new Listing("", "", "CAD", p) } map { l => new MatchComputations(product, l) }
     val filtered = Algorithm.filterByPrice(matches.toList)
 
-    assert(!filtered.exists(_.listing.price == 10))
-    assert(!filtered.exists(_.listing.price == 20))
-    assert(filtered exists (_.listing.price == 100))
+    assert(!filtered.exists(_.listing.price == 6))
+    assert(!filtered.exists(_.listing.price == 5))
+    assert(filtered exists (_.listing.price == 90))
     assert(filtered exists (_.listing.price == 150))
     assert(!filtered.exists(_.listing.price == 400))
   }
@@ -108,7 +108,7 @@ class Misc extends FlatSpec with Matchers {
     val t = TokenMatchType.nameToTitle
     val tokens =
       Set((t, 0, 13, "b"), (t, 0, 15, "c"), (t, 0, 19, "d"), (t, 0, 0, "10"), (t, 0, 9, "87"), (t, 0, 24, "55"))
-    val listing = new Listing("10aaaaaa687a b caa d8aaa559", "", "CAD", 0.0)
+    val listing = new Listing("10aaaaaa687a b caa d-aaa559", "", "CAD", 0.0)
     val result = TokenMatchingUtils.getImpureMatches(tokens, listing)
 
     result should contain allOf((t, 0, 9, "87"), (t, 0, 24, "55"), (t, 0, 15, "c"))

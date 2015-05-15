@@ -10,11 +10,12 @@ class Quality extends FlatSpec with Matchers {
   val listingPath: String = "data/listings.txt"
   val data = Main.loadDataFromFiles(productPath, listingPath)
 
-  "Pentax K-X" should "have _ matches" in {
+  "Pentax K-X" should "have 97 (-1 + -2) matches" in {
     val kx = data flatMap {_._1 find(p => p.name == "Pentax_K-x")}
     val matches = kx map {p => findConcreteMatches(p, data.get._2)}
 
-//    matches.get shouldBe empty
+    // 1 filtered by price, 2 by model being too far from manufacturer
+    matches.get.size should be (97 - 3)
     //data.get._2.filter(l => l.title.contains("pentax") && (l.title.contains("k") && l.title.contains("x"))).map(new MatchComputations(kx.get, _)).toSeq.diff(matches.get.toSeq)
   }
 
@@ -40,12 +41,11 @@ class Quality extends FlatSpec with Matchers {
     matches.get should have size (22 - 1)
   }
 
-  "Nikon S640" should "have 13 (-1) matches" in {
+  "Nikon S640" should "have 13 matches" in {
     val s640 = data flatMap {_._1 find(p => p.model == "S640" && p.manufacturer == "Nikon")}
     val matches = s640 map {p => findConcreteMatches(p, data.get._2)}
 
-    // one is filtered by price.
-    matches.get should have size (13 - 1)
+    matches.get should have size 13
   }
 
   "Sanyo DSC-SX1Z" should "have no matches" in {
