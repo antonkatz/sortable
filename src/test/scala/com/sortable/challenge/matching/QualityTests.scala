@@ -11,6 +11,14 @@ class QualityTests extends FlatSpec with Matchers {
   val listingPath: String = "data/listings.txt"
   val data = Main.loadDataFromFiles(productPath, listingPath)
 
+  "Pentax K-R" should "have _ matches" in {
+    val kr = data flatMap {_._1 find(p => p.name == "Pentax_K-r")}
+    val matches = kr map {p => Algorithm.findMatches(p, data.get._2)}
+
+    // 1 filtered by price, 2 by model being too far from manufacturer
+    matches.get.size should be (97 - 3)
+  }
+
   "Pentax K-X" should "have 97 (-1 + -2) matches" in {
     val kx = data flatMap {_._1 find(p => p.name == "Pentax_K-x")}
     val matches = kx map {p => Algorithm.findMatches(p, data.get._2)}

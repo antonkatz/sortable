@@ -23,9 +23,9 @@ THE SOFTWARE.
 */
 package com.sortable.challenge.matching
 
+import com.sortable.challenge.matching.AlgorithmUtils._
 import com.sortable.challenge.matching.TokenMatchType._
 import com.sortable.challenge.matching.TokenMatchingUtils._
-import com.sortable.challenge.matching.AlgorithmUtils._
 import com.sortable.challenge.{Listing, Product}
 
 import scala.language.postfixOps
@@ -54,7 +54,7 @@ case class PairHolder(product: Product, listing: Listing) {
 
     /** The same token in the origin string can be matched several times in the destination string. Clustering attempts
       * to address the issue of which one of those several matched positions should be considered. */
-    private[PairHolder] val clusters = groupedMatches mapValues findTightestCluster
+    private[matching] val clusters = groupedMatches mapValues findTightestCluster
 
     /** The reordering of matched token in the destination string as compared to origin string. */
     private[matching] val orderChanges = clusters mapValues getOrderChangeAroundPivot
@@ -98,6 +98,10 @@ case class PairHolder(product: Product, listing: Listing) {
     private[matching] val impureModelPhraseCount = getImpurePhraseCount(uniqueMatches, listing.title)
 
     private[matching] val orderChange = Global.orderChanges get modelToTitle
+    /** In an ideal product/listing match, the token matches from product name should be at the same positions as the
+      *  model matches. */
+    private[matching] val clusterDifferenceCount =
+      countPositionDifferences(uniqueMatches, Global.clusters.getOrElse(nameToTitle, Iterable()))
 
     private[matching] val dispersion = Global.nonZeroDispersions.getOrElse(modelToTitle, 0.0)
   }
@@ -109,6 +113,6 @@ case class PairHolder(product: Product, listing: Listing) {
   }
 
   /** Used to debug purposes. When the [[com.sortable.challenge.matching.Algorithm]] makes its decision, it will dump
-    *  pass/fail status of a sequence of conditions into this variable. */
+    * pass/fail status of a sequence of conditions into this variable. */
   private[matching] var debug = Seq[Boolean]()
 }

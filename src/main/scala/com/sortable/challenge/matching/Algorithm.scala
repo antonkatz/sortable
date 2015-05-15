@@ -37,7 +37,7 @@ object Algorithm {
     orderChange, modelOrderChange,
     missing, missingModel, missingNumber,
     dispersion, modelDispersion,
-    modelModifiers, manufacturer
+    modelModifiers, manufacturer, clusterDifference
   )
 
   private val maxPriceSDGap = 0.9
@@ -121,6 +121,12 @@ object Algorithm {
   private def manufacturer(p: PairHolder) = {
     p.Manufacturer.manufacturerMatchCount.toDouble / p.Manufacturer.tokenCount > 0.5 ||
         p.Manufacturer.manufacturerSimilarity.map(_ > 0.5).getOrElse(true)
+  }
+
+  /** In an ideal product/listing match, the token matches from product name should be at the same positions as the
+    *  model matches. */
+  private def clusterDifference(p: PairHolder) = {
+    p.Model.clusterDifferenceCount <= 0.5
   }
 
   /* --- */

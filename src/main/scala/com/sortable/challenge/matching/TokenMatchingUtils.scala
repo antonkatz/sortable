@@ -159,6 +159,15 @@ object TokenMatchingUtils {
         (destinationString.lift(t._3 - 1) exists isImpure)
   }
 
+  /**
+   * Counts (with replacement) how many [[TokenMatch]]es from one set appear in the other set with the same string
+   * value, but a different destination position.
+   * @usecase Token matches of different [[com.sortable.challenge.matching.TokenMatchType.TokenMatchType]]s, that
+   *          have the same token stings should be found at the same positions.
+   **/
+  def countPositionDifferences(from: Iterable[TokenMatch], in: Iterable[TokenMatch]): Int =
+    from count { f => in exists { i => f._4 == i._4 && f._3 != i._3 } }
+
   /** @usecase Determines if a model modifier match has a digit between it and the closest fully numeric match. */
   def getImpurePhraseCount(matches: Iterable[TokenMatch], in: String): Int = {
     def range(m: TokenMatch) = m._3 -> (m._3 + m._4.length)
