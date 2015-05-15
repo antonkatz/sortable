@@ -16,7 +16,7 @@ object TokenMatchType extends Enumeration {
     case this.manufacturerToManufacturer => listing.manufacturer
   }
 
-  def getOrigin(matchType: TokenMatchType, product: Product): Iterable[Token] = matchType match {
+  def getTokens(matchType: TokenMatchType, product: Product): Iterable[Token] = matchType match {
     case this.nameToTitle => product.getNameTokens
     case this.manufacturerToTitle|this.manufacturerToManufacturer => product.getManufacturerTokens
     case this.modelToTitle => product.getModelTokens
@@ -24,6 +24,6 @@ object TokenMatchType extends Enumeration {
   }
 
   def getConstituents(matchType: TokenMatchType, product: Product, listing: Listing): (Iterable[Token], String) = {
-    (getOrigin(matchType, product), getDestination(matchType, listing))
+    (getTokens(matchType, product), getDestination(matchType, listing))
   }
 }

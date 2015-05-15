@@ -50,7 +50,10 @@ class Misc extends FlatSpec with Matchers {
 
   "Average dispersion" should "be computed correctly" in {
     TokenMatchingUtils.computeAverageDispersion(
-      Iterable((_t, 0, 10, "abc"), (_t, 0, 20, "ab"), (_t, 0, 100, "abcd"))) should equal(28.333 +- 0.001)
+      Iterable((_t, 0, 10, "abc"), (_t, 0, 20, "ab"), (_t, 0, 100, "abcd"))) should equal(42.5 +- 0.001)
+    TokenMatchingUtils.computeAverageDispersion(
+      Iterable((_t, 0, 4, "k"), (_t, 0, 8, "x"))) should equal(3.0 +- 0.001)
+    TokenMatchingUtils.computeAverageDispersion(Iterable((_t, 0, 4, "k"))) should equal(0.0)
   }
 
   /** Related tests of token matching/filtering. */
@@ -67,12 +70,13 @@ class Misc extends FlatSpec with Matchers {
 
     "'Overmatched' filter" should "be filtering correct tokens" in {
       val product = new Product("Sony_Cyber-shot_DSC-S930", "Sony", model, Some("Cyber-shot"))
-      var tokens = matchTokens(product.getModelTokens, listingTitle, _t)
+      var tokens = matchTokens(product.getModelTokens, listingTitle, _t) ++ Iterable((_t, 0, 16, "DSC"))
       tokens = TokenMatchingUtils.filterOvermatched(tokens)
 
       assert(tokens exists (t => t._4 == "s" && t._3 == 0))
       assert(tokens exists (t => t._4 == "s" && t._3 == 9))
       assert(!tokens.exists(t => t._4 == "s" && t._3 == 6))
+      assert(tokens.exists(t => t._4 == "DSC"))
     }
   }
 
@@ -81,7 +85,7 @@ class Misc extends FlatSpec with Matchers {
     val product = new Product("", "", "", None)
     val prices = Set(10, 11, 90, 100, 110, 105, 107, 120, 140, 145, 150, 400)
     val matches = prices map { p => new Listing("", "", "CAD", p) } map { l => new MatchComputations(product, l) }
-    val filtered = AnalysisUtils.filterByPrice(matches.toList)
+    val filtered = Algorithm.filterByPrice(matches.toList)
 
     assert(!filtered.exists(_.listing.price == 10))
     assert(!filtered.exists(_.listing.price == 20))
@@ -90,14 +94,25 @@ class Misc extends FlatSpec with Matchers {
     assert(!filtered.exists(_.listing.price == 400))
   }
 
-  "Impure tokens" should "be detected correctly" in {
-    val t = TokenMatchType.familyToTitle
+  "Impure numeric tokens" should "be detected correctly" in {
+    val t = TokenMatchType.nameToTitle
     val tokens = Set((t, 0, 10, "a"), (t, 0, 0, "10"), (t, 0, 10, "87"), (t, 0, 20, "55"))
     val listing = new Listing("10aaaaaa687aaaaaaaaa559", "", "CAD", 0.0)
     val result = TokenMatchingUtils.getImpureNumericMatches(tokens, listing)
 
     result should contain allOf((t, 0, 10, "87"), (t, 0, 20, "55"))
     result should contain noneOf((t, 0, 10, "a"), (t, 0, 0, "10"))
+  }
+
+  "Impure tokens" should "be detected correctly" in {
+    val t = TokenMatchType.nameToTitle
+    val tokens =
+      Set((t, 0, 13, "b"), (t, 0, 15, "c"), (t, 0, 19, "d"), (t, 0, 0, "10"), (t, 0, 9, "87"), (t, 0, 24, "55"))
+    val listing = new Listing("10aaaaaa687a b caa d8aaa559", "", "CAD", 0.0)
+    val result = TokenMatchingUtils.getImpureMatches(tokens, listing)
+
+    result should contain allOf((t, 0, 9, "87"), (t, 0, 24, "55"), (t, 0, 15, "c"))
+    result should contain noneOf((t, 0, 13, "b"), (t, 0, 0, "10"), (t, 0, 19, "d"))
   }
 
   "Impure model modifiers" should "be detected correctly" in {
@@ -123,5 +138,12 @@ class Misc extends FlatSpec with Matchers {
     TokenMatchingUtils.getLettersAroundDigits(set4) should contain only (("a", 9), ("b", 12))
     TokenMatchingUtils.getLettersAroundDigits(set5) shouldBe empty
     TokenMatchingUtils.getLettersAroundDigits(set6) shouldBe empty
+  }
+
+  "Simple similarity of two strings" should "be calculated correctly" in {
+    TokenMatchingUtils.simpleSimilarity("Abc", "addr").get should equal(0.33 +- 0.01)
+    TokenMatchingUtils.simpleSimilarity("abc", "aaddr").get should equal(0.33 +- 0.01)
+    TokenMatchingUtils.simpleSimilarity("Abbc", "aabr").get should equal(0.5 +- 0.01)
+    TokenMatchingUtils.simpleSimilarity("Contax", "sony").get should equal(0.33 +- 0.01)
   }
 }

@@ -10,6 +10,14 @@ class Quality extends FlatSpec with Matchers {
   val listingPath: String = "data/listings.txt"
   val data = Main.loadDataFromFiles(productPath, listingPath)
 
+  "Pentax K-X" should "have _ matches" in {
+    val kx = data flatMap {_._1 find(p => p.name == "Pentax_K-x")}
+    val matches = kx map {p => findConcreteMatches(p, data.get._2)}
+
+//    matches.get shouldBe empty
+    //data.get._2.filter(l => l.title.contains("pentax") && (l.title.contains("k") && l.title.contains("x"))).map(new MatchComputations(kx.get, _)).toSeq.diff(matches.get.toSeq)
+  }
+
   "Sony S930" should "have 14 matches" in {
     val s930 = data flatMap {_._1 find(_.model == "DSC-S930")}
     val matches = s930 map {p => findConcreteMatches(p, data.get._2)}
@@ -32,11 +40,12 @@ class Quality extends FlatSpec with Matchers {
     matches.get should have size (22 - 1)
   }
 
-  "Nikon S640" should "have 13 matches" in {
+  "Nikon S640" should "have 13 (-1) matches" in {
     val s640 = data flatMap {_._1 find(p => p.model == "S640" && p.manufacturer == "Nikon")}
     val matches = s640 map {p => findConcreteMatches(p, data.get._2)}
 
-    matches.get should have size 13
+    // one is filtered by price.
+    matches.get should have size (13 - 1)
   }
 
   "Sanyo DSC-SX1Z" should "have no matches" in {
@@ -52,5 +61,13 @@ class Quality extends FlatSpec with Matchers {
     val matches = cx2 map {p => findConcreteMatches(p, data.get._2)}
 
     matches.get should have size 19
+  }
+
+  "Contax N Digital" should "have no matches" in {
+    val nDigital = data flatMap {_._1 find(p => p.name == "Contax_N_Digital")}
+    val matches = nDigital map {p => findConcreteMatches(p, data.get._2)}
+
+    // found none by hand
+    matches.get shouldBe empty
   }
 }

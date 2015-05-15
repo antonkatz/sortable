@@ -33,19 +33,21 @@ import scala.language.postfixOps
  * Does a multitude of computations used to determine whether a product and a listing are a match.
  */
 case class MatchComputations(product: Product, listing: Listing) {
-  private val tokensByType = TokenMatchType.values map {tt =>
-    tt -> TokenMatchType.getConstituents(tt, product, listing)} filterNot {_._2._1 isEmpty} toMap
+  private val tokensByType = TokenMatchType.values map { tt =>
+    tt -> TokenMatchType.getConstituents(tt, product, listing)
+  } filterNot { _._2._1 isEmpty } toMap
 
   /** The maximum possible number of [[com.sortable.challenge.matching.TokenMatchingUtils.TokenMatch]]es. */
-  private[challenge] val totalTokenCount = tokensByType map {_._2._1 size} sum
+  private[challenge] val totalTokenCount = tokensByType map { _._2._1 size } sum
   /** Same as totalTokenCount, but for fully numeric tokens only. */
-  private[challenge] val totalNumberTokenCount = tokensByType map {_._2._1 count isNumeric} sum
+  private[challenge] val totalNumberTokenCount = tokensByType map { _._2._1 count isNumeric } sum
 
   /** All matched tokens grouped by their type (origin/destination). */
-  private var groupedMatches = tokensByType map {t =>
-    t._1 -> matchTokens(t._2._1, t._2._2, t._1)} filterNot {_._2 isEmpty }
+  private var groupedMatches = tokensByType map { t =>
+    t._1 -> matchTokens(t._2._1, t._2._2, t._1)
+  } filterNot { _._2 isEmpty }
   /** GroupedMatches with matches removed where the token is contained within a different matched token. */
-  groupedMatches = groupedMatches mapValues TokenMatchingUtils.filterOvermatched
+  groupedMatches = TokenMatchingUtils.filterOvermatched(groupedMatches.values flatten) groupBy (_._1)
 
   /** The same token in the origin string can be matched several times in the destination string. Clustering attempts
     * to address the issue of which one of those several matched positions should be considered. */
@@ -58,14 +60,16 @@ case class MatchComputations(product: Product, listing: Listing) {
   private[matching] val totalOrderChangePenalty = orderChangePenalties.values.toSeq sum
   private[matching] val modelOrderChangePenalty = orderChangePenalties getOrElse(modelToTitle, 0.0)
 
-  /** Number of matched tokens, without considering how many matches a single token has. */
-  private val distinctMatchCount = {clusters mapValues (_.size) values } sum
+  /** Number of matched tokens, without considering how many matches a single token has within a type category.
+    * If a token with the same string value is present across different type categories it will be counted twice. */
+  private val typedDistinctMatchCount = {clusters mapValues (_.size) values } sum
   /** Same as distinctTokensCount, but for numeric tokens. */
-  private val distinctNumberMatchCount = {groupedMatches mapValues (_ count isNumeric) values } sum
+  private val typedDistinctNumberMatchCount = {clusters mapValues (_ count isNumeric) values } sum
   /** How many tokens were not matched at least once. */
-  private[matching] val missingCount = totalTokenCount - distinctMatchCount
+  private[matching] val missingCount = totalTokenCount - typedDistinctMatchCount
   /** How many tokens (that are purely numeric) were not matched at least once. */
-  private[matching] val missingNumberCount = totalNumberTokenCount - distinctNumberMatchCount
+  private[matching] val missingNumberCount = totalNumberTokenCount - typedDistinctNumberMatchCount
+  private[matching] val impureTokensCount = {clusters mapValues {getImpureMatches(_, listing).size} values} sum
 
   private val modelTokensMatches = clusters getOrElse(modelToTitle, Iterable()) toSeq
   /** Model numbers often have a letter or a combination of letters acting as a 'modifier'. */
@@ -74,8 +78,7 @@ case class MatchComputations(product: Product, listing: Listing) {
     * string. */
   private[matching] val missingModelTokensCount = product.getModelTokens.size - modelTokensMatches.size
   private[matching] val missingModelModifiers = getMissing(modelModifierTokens toSet, modelTokensMatches toSet)
-  private[matching] val impureModelNumberTokensCount = getImpureNumericMatches(modelTokensMatches, listing) size
-  private[matching] val impureModelModifiersCount = getImpurePhraseCount(modelTokensMatches, listing.title)
+  private[matching] val impureModelPhraseCount = getImpurePhraseCount(modelTokensMatches, listing.title)
 
   /** Matched tokens from an origin string will be separated by some distance, which serves as an indication of how
     * relevant the token matches are for determining if the listing is a match to a product. */
@@ -84,23 +87,35 @@ case class MatchComputations(product: Product, listing: Listing) {
   /** The average dispersion across all token types. */
   private[matching] val avgDispersion = (nonZeroDispersions.values sum) / nonZeroDispersions.size
 
+//  private[matching] val manufacturerSimilarity =
+  val manufacturerSimilarity =
+    TokenMatchingUtils.simpleSimilarity(product.manufacturer, listing.manufacturer)
+
   // fixme move out of here to anaylsisutils
   /** Model tokens play an important role in determining if a listing is a match to a product. Tightly clustered
     * model tokens can offset the global (average) dispersion limit. */
   private[matching] val dispersionLimitOffset =
     nonZeroDispersions.get(TokenMatchType.modelToTitle) map (d => 4 / (d + 1)) getOrElse 0.0
 
-  val missingModelModifierPenalty = missingModelModifiers map {t => 1.2 - (t._1.length / 4.0)} filter {_ > 0} sum
+  val missingModelModifierPenalty = missingModelModifiers map { t => 1.2 - (t._1.length / 4.0) } filter { _ > 0 } sum
 
   // fixme move out of here to anaylsisutils
+
+  // fixme check for 0s
+  private val conditions = Iterable(
+    totalOrderChangePenalty < 5,
+    modelOrderChangePenalty <= 2,
+    (missingCount + impureTokensCount).toDouble / totalTokenCount < 0.5,
+    (missingModelTokensCount.toDouble + missingModelModifierPenalty) / product.getModelTokens.size <= 0.5,
+    totalNumberTokenCount == 0 || missingNumberCount.toDouble / totalNumberTokenCount <= 0.5,
+    avgDispersion < 6 + dispersionLimitOffset,
+    nonZeroDispersions.getOrElse(TokenMatchType.modelToTitle, 0.0) < 3,
+    modelModifierTokens.isEmpty || impureModelPhraseCount < modelModifierTokens.size,
+    manufacturerSimilarity.map(_ > 0.5).getOrElse(true)
+  )
+
   /**
    * Whether this tests was successful (the product and the listing are a match).
    */
-  def isMatch: Boolean = totalOrderChangePenalty < 5 &&
-      modelOrderChangePenalty <= 2 &&
-      (missingCount.toDouble + impureModelNumberTokensCount) / totalTokenCount < 0.5 &&
-      (missingModelTokensCount.toDouble + missingModelModifierPenalty) / product.getModelTokens.size <= 0.5 &&
-      missingNumberCount.toDouble / totalNumberTokenCount <= 0.5 &&
-      avgDispersion < 5 + dispersionLimitOffset &&
-      (impureModelModifiersCount < modelModifierTokens.size || modelModifierTokens.isEmpty)
+  def isMatch: Boolean = conditions forall (_ == true)
 }

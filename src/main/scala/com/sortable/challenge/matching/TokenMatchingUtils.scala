@@ -75,7 +75,7 @@ object TokenMatchingUtils {
   def filterOvermatched(tokens: Iterable[TokenMatch]): Iterable[TokenMatch] = {
     val ranges = tokens map { t => t ->(t._3, t._3 + t._4.length) }
     ranges filterNot { tr =>
-      ranges.exists(r => tr._2._1 >= r._2._1 && tr._2._2 <= r._2._2 && r._1 != tr._1)
+      ranges.exists(r => tr._2._1 >= r._2._1 && tr._2._2 <= r._2._2 && r._1._4.toLowerCase != tr._1._4.toLowerCase)
     } map { _._1 }
   }
 
@@ -131,11 +131,11 @@ object TokenMatchingUtils {
   }
 
   /** @return Average distance between token matches. */
-  def computeAverageDispersion(tokens: Iterable[TokenMatch]) = {
-    val size = tokens.size toDouble
-    val boundries = { tokens map { t => t._3 -> (t._3 + t._4.length) } toSeq } sortBy (_._1)
-    val gaps = boundries.zip(boundries.tail) map { b => b._2._1 - b._1._2 }
-    gaps.sum / size
+  def computeAverageDispersion(tokens: Iterable[TokenMatch]): Double = {
+    val boundaries = { tokens map { t => t._3 -> (t._3 + t._4.length) } toSeq } sortBy (_._1)
+    if (boundaries.size < 2) return 0.0
+    val gaps = boundaries.zip(boundaries.tail) map { b => b._2._1 - b._1._2 }
+    gaps.sum.toDouble / gaps.size
   }
 
   def isNumeric(tokenMatch: TokenMatch): Boolean = tokenMatch._4 forall { _ isDigit }
@@ -170,11 +170,20 @@ object TokenMatchingUtils {
     tokens filterNot { t => matches exists (_._4 == t._1) }
 
   /** Determines if a match that if fully numeric has a digit following or preceding it in the destination string. */
+  @deprecated
   def getImpureNumericMatches(matches: Iterable[TokenMatch], listing: Listing) = matches filter { isNumeric } filter {
     t =>
       val destinationString = TokenMatchType.getDestination(t._1, listing)
       (destinationString.lift(t._3 + t._4.length) exists { _ isDigit }) ||
           (destinationString.lift(t._3 - 1) exists { _ isDigit })
+  }
+
+  def getImpureMatches(matches: Iterable[TokenMatch], listing: Listing): Iterable[TokenMatch] = matches filter { t =>
+    // no unicode
+    def isImpure(c: Char) = if (isNumeric(t)) c isDigit else c isLetter
+    val destinationString = TokenMatchType.getDestination(t._1, listing)
+    (destinationString.lift(t._3 + t._4.length) exists isImpure) ||
+        (destinationString.lift(t._3 - 1) exists isImpure)
   }
 
   /** @usecase Determines if a model modifier match has a digit between it and the closest fully numeric match. */
@@ -188,6 +197,21 @@ object TokenMatchingUtils {
 
     val impureZones = allRanges.zip(allRanges.tail) map { p => p._1._2 -> p._2._1 }
     impureZones count { p => in.substring(p._1, p._2).exists(_ isDigit) }
+  }
+
+  /** Computes the percentage of occurrences of characters from one string (of) in a different string (to) without 
+    * replacement. */
+  def simpleSimilarity(of: String, to: String): Option[Double] = {
+    if (of.isEmpty || to.isEmpty) return None
+    val toChars = to.toLowerCase.toBuffer
+    val count: Int = of.toLowerCase.foldLeft (0) { (count: Int, char: Char) =>
+      val index = toChars indexOf char
+      if (index > -1) {
+        toChars.remove(index)
+        count + 1
+      } else count
+    }
+    Option(count.toDouble / of.length)
   }
 
   private[matching] def produceCombinationsFromBins[T](choiceBins: List[List[T]]): List[List[T]] =

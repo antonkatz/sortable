@@ -4,7 +4,7 @@ import com.sortable.challenge.{Listing, Product}
 
 /**
  * Functions for testing and scoring matches between products and listings.
- * These are somewhat algorithm dependant
+ * These are somewhat algorithm dependant.
  */
 object ReconciliationUtils {
   /** Assuming sample data, rather than the whole population. */
@@ -41,13 +41,14 @@ object ReconciliationUtils {
     }
   }
 
+  // move to algorithm
   def findMatches(products: Set[Product], listings: Set[Listing]): Map[Product, Iterable[MatchComputations]] =
     products.par.map({ p => p -> findConcreteMatches(p, listings) }).toList.toMap
 
   private[challenge] def findConcreteMatches(product: Product, listings: Iterable[Listing]):
   Iterable[MatchComputations] = {
     val potential = findPotentialMatches(product, listings)
-    val filteredByPrice = AnalysisUtils.filterByPrice(potential.toList)
+    val filteredByPrice = Algorithm.filterByPrice(potential.toList)
     filteredByPrice
   }
 
