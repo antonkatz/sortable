@@ -83,9 +83,9 @@ class Misc extends FlatSpec with Matchers {
   // better to get a false positive with this one, then a false negative (for example kits)
   "Matches with prices that are obviously outliers" should "be carefully filtered out" in {
     val product = new Product("", "", "", None)
-    val prices = Set(5, 6, 90, 100, 110, 105, 107, 111, 113, 120, 140, 107, 111, 113, 120, 140, 145, 150, 400)
-    val matches = prices map { p => new Listing("", "", "CAD", p) } map { l => new MatchComputations(product, l) }
-    val filtered = Algorithm.filterByPrice(matches.toList)
+    val prices = Set(5, 6, 90, 100, 110, 105, 107, 111, 113, 120, 150, 400)
+    val matches = prices map { p => new Listing("", "", "CAD", p) } map { l => new PairHolder(product, l) }
+    val filtered = AlgorithmUtils.filterByPriceGap(matches.toList, 0.8)
 
     assert(!filtered.exists(_.listing.price == 6))
     assert(!filtered.exists(_.listing.price == 5))

@@ -24,7 +24,7 @@ THE SOFTWARE.
 package com.sortable.challenge
 
 import com.sortable.challenge.JsonUtils.{convertToListings, convertToProducts}
-import com.sortable.challenge.matching.{ReconciliationUtils, MatchComputations}
+import com.sortable.challenge.matching.{Algorithm, AlgorithmUtils, PairHolder}
 import com.sortable.challenge.{SimpleLogger => Log}
 
 import scala.io.Source
@@ -51,7 +51,7 @@ object Main {
 		but that would complicate quality analysis of the algorithm. */
 //		val matches = data map {d => findMatches(d._1, d._2)}
 //		val matches = data map {d => findMatches(Set(d._1.toSeq.slice(20, 30).find{_.name.contains("930")} get), d._2)}
-		val matches = data map {d => ReconciliationUtils.findMatches(d._1 take 30 drop 20, d._2)}
+		val matches = data map {d => Algorithm.findMatches(d._1 take 30 drop 20, d._2)}
 		matches
 
 		// check if any of the listings have been matched twice, indicating a bad algorithm
