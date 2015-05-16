@@ -76,7 +76,8 @@ case class PairHolder(product: Product, listing: Listing) {
     private val dispersions = clusters mapValues { computeAverageDispersion }
     private[matching] val nonZeroDispersions = dispersions filterNot (d => d._2 < 0.001 && d._2 > -0.001)
     /** The average dispersion across all token types. */
-    private[matching] val avgDispersion = (nonZeroDispersions.values sum) / nonZeroDispersions.size
+    private[matching] val avgDispersion =
+      if (nonZeroDispersions.isEmpty) 0.0 else (nonZeroDispersions.values sum) / nonZeroDispersions.size
   }
 
   object Model {
@@ -114,5 +115,7 @@ case class PairHolder(product: Product, listing: Listing) {
 
   /** Used to debug purposes. When the [[com.sortable.challenge.matching.Algorithm]] makes its decision, it will dump
     * pass/fail status of a sequence of conditions into this variable. */
-  private[matching] var debug = Seq[Boolean]()
+  private[matching] var debugConditions = Seq[Boolean]()
+  /** @usecase dumping any relavant calculation results */
+  private[matching] var debug = Map[String, Any]()
 }

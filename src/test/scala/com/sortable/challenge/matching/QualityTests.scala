@@ -11,12 +11,28 @@ class QualityTests extends FlatSpec with Matchers {
   val listingPath: String = "data/listings.txt"
   val data = Main.loadDataFromFiles(productPath, listingPath)
 
-  "Pentax K-R" should "have _ matches" in {
+  "Sony Alpha NEX-5" should "have 63 matches" in {
+    // listings with letters at the end (ex. nex-5k) are referring to the same model
+    val nex5 = data flatMap {_._1 find(p => p.name == "Sony_Alpha_NEX-5")}
+    val matches = nex5 map {p => Algorithm.findMatches(p, data.get._2)}
+
+    matches.get should have size (4-1)
+  }
+
+  "Casio Exilim EX-FH25" should "have 4 (-1) matches" in {
+    val fh25 = data flatMap {_._1 find(p => p.name == "Casio_Exilim_EX-FH25")}
+    val matches = fh25 map {p => Algorithm.findMatches(p, data.get._2)}
+
+    // filtered by price
+    matches.get should have size (4-1)
+  }
+
+  "Pentax K-R" should "have 63 matches" in {
     val kr = data flatMap {_._1 find(p => p.name == "Pentax_K-r")}
     val matches = kr map {p => Algorithm.findMatches(p, data.get._2)}
 
-    // 1 filtered by price, 2 by model being too far from manufacturer
-    matches.get.size should be (97 - 3)
+    // filtered by having too many random model matches
+    matches.get should have size 63
   }
 
   "Pentax K-X" should "have 97 (-1 + -2) matches" in {
@@ -24,7 +40,7 @@ class QualityTests extends FlatSpec with Matchers {
     val matches = kx map {p => Algorithm.findMatches(p, data.get._2)}
 
     // 1 filtered by price, 2 by model being too far from manufacturer
-    matches.get.size should be (97 - 3)
+    matches.get should have size (97 - 3)
   }
 
   "Sony S930" should "have 14 matches" in {
@@ -49,11 +65,13 @@ class QualityTests extends FlatSpec with Matchers {
     matches.get should have size (22 - 1)
   }
 
-  "Nikon S640" should "have 13 matches" in {
+  "Nikon S640" should "have 13 (-1) matches" in {
     val s640 = data flatMap {_._1 find(p => p.model == "S640" && p.manufacturer == "Nikon")}
     val matches = s640 map {p => Algorithm.findMatches(p, data.get._2)}
 
-    matches.get should have size 13
+    // one filtered by price
+    // todo flickers sometimes depending on whether accessories are matched (driving SD higher)
+    matches.get should have size (13)
   }
 
   "Sanyo DSC-SX1Z" should "have no matches" in {

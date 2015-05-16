@@ -23,44 +23,47 @@ THE SOFTWARE.
 */
 package com.sortable.challenge
 
+import com.sortable.challenge.SimpleLogger.debug
 import com.sortable.challenge.TokenizationUtils._
-import SimpleLogger.debug
+
 /**
  * Case classes for convenient representation of underlying data.
  */
-case class Product(name: String, manufacturer: String, model: String, family: Option[String]) extends DataHolder
-{
-	private val delimiters = Set(' ', '_', '-', '/')
+case class Product(name: String, manufacturer: String, model: String, family: Option[String]) extends DataHolder {
+  private val delimiters = Set(' ', '_', '-', '/')
 
-	private val nameTokens: Seq[Token] = tokenize(name, delimiters)
-	private val manufacturerTokens: Seq[Token] = tokenize(manufacturer, delimiters)
-	private val modelTokens: Seq[Token] = tokenize(model, delimiters)
-	private val familyTokens: Option[Seq[Token]] = family map {f => tokenize(f, delimiters)}
+  private val nameTokens: Seq[Token] = tokenize(name, delimiters)
+  private val manufacturerTokens: Seq[Token] = tokenize(manufacturer, delimiters)
+  private val modelTokens: Seq[Token] = tokenize(model, delimiters)
+  private val familyTokens: Option[Seq[Token]] = family map { f => tokenize(f, delimiters) }
 
-	def getNameTokens = nameTokens
-	def getManufacturerTokens = manufacturerTokens
-	def getModelTokens = modelTokens
-	def getFamilyTokens = familyTokens getOrElse Seq()
+  def getNameTokens = nameTokens
+
+  def getManufacturerTokens = manufacturerTokens
+
+  def getModelTokens = modelTokens
+
+  def getFamilyTokens = familyTokens getOrElse Seq()
 }
 
 // used double instead of BigDecimal for performance
-case class Listing(var title: String, var manufacturer: String, currency: String, price: Double) extends DataHolder
-{
-	title = title.toLowerCase
-	manufacturer = manufacturer.toLowerCase
+case class Listing(var title: String, var manufacturer: String, currency: String, price: Double) extends DataHolder {
+  val originalTitle = title
+  title = title.toLowerCase
+  manufacturer = manufacturer.toLowerCase
 
-	val adjustedPrice = PriceConverter.convert(price, currency)
+  val adjustedPrice = PriceConverter.convert(price, currency)
 }
 
-trait DataHolder
-{
-	def tokenize(str: String, delimiters: Set[Char]): Seq[Token] =
-	{
-		val tokens = tokenizeWithIndex(str, delimiters) map strictTrimToken
-		if (tokens.contains(None)) {
-			debug("Was not able to clean some of the tokens: %s", str)
-		}
-		tokens.flatten
-	}
+trait DataHolder {
+  /** Wrapper around [[com.sortable.challenge.TokenizationUtils.tokenizeWithIndex]] that logs a message if there are
+    * problems. */
+  def tokenize(str: String, delimiters: Set[Char]): Seq[Token] = {
+    val tokens = tokenizeWithIndex(str, delimiters) map strictTrimToken
+    if (tokens.contains(None)) {
+      debug("Was not able to clean some of the tokens: %s", str)
+    }
+    tokens.flatten
+  }
 }
 

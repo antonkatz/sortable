@@ -37,15 +37,24 @@ class AlgorithmUtilsTests extends FlatSpec with Matchers {
   // better to get a false positive with this one, then a false negative (for example kits)
   "Matches with prices that are obviously outliers" should "be carefully filtered out" in {
     val product = new Product("", "", "", None)
-    val prices = Set(5, 6, 90, 100, 110, 105, 107, 111, 113, 120, 150, 400)
-    val matches = prices map { p => new Listing("", "", "CAD", p) } map { l => new PairHolder(product, l) }
-    val filtered = filterByPriceGap(matches.toList, 0.8)
+    var prices = Seq(5, 6, 90, 100, 110, 105, 107, 111, 113, 120, 150, 400)
+    var matches = prices map { p => new Listing("", "", "CAD", p) } map { l => new PairHolder(product, l) }
+    var filtered = filterByPriceGap(matches.toList, 0.8)
 
     assert(!filtered.exists(_.listing.price == 6))
     assert(!filtered.exists(_.listing.price == 5))
     assert(filtered exists (_.listing.price == 90))
     assert(filtered exists (_.listing.price == 150))
     assert(!filtered.exists(_.listing.price == 400))
+
+    prices = Seq(100, 125, 85, 150, 135, 140, 151, 185, 120, 200, 130, 200, 250)
+    val currency = Seq("USD", "USD", "GBP", "USD", "EUR", "EUR", "EUR", "USD", "GBP", "USD", "GBP", "EUR", "EUR")
+    assert(prices.length == currency.length)
+    matches = prices.zip(currency) map { p => new Listing("", "", p._2, p._1) } map { l => new PairHolder(product, l) }
+    filtered = filterByPriceGap(matches.toList, 0.9)
+
+    assert(!filtered.exists(_.listing.price == 250))
+    filtered should have size 12
   }
 
   "Simple similarity of two strings" should "be calculated correctly" in {

@@ -35,7 +35,7 @@ object Algorithm {
     * filtering (which is filtering by price at the moment). */
   private val matchingConditions = Seq[(PairHolder) => Boolean](
     orderChange, modelOrderChange,
-    missing, missingModel, missingNumber,
+    missing, missingModel, missingNumber, //4
     dispersion, modelDispersion,
     modelModifiers, manufacturer, clusterDifference
   )
@@ -60,10 +60,13 @@ object Algorithm {
   private def modelOrderChangePenalty(p: PairHolder) =
     p.Model.orderChange map { c => orderChangePenalty(c.values) } getOrElse 0.0
 
+  /* Conditions */
+
   /** In an ideal match tokens should not swap places or change order. */
   private def orderChange(p: PairHolder) = {
+    val count = p.Global.orderChanges map {_._2 size} sum
     val penalty = p.Global.orderChanges map { c => orderChangePenalty(c._2.values) } sum;
-    penalty < 5
+    penalty < count // fixme 5
   }
 
   private def modelOrderChange(p: PairHolder) = modelOrderChangePenalty(p) <= 2
@@ -100,10 +103,11 @@ object Algorithm {
   private def modelDispersion(p: PairHolder) = {
     val nonUnique = p.Model.allMatches diff (p.Model.uniqueMatches toSeq)
     val dispersion = AlgorithmUtils.computeAverageDispersion(nonUnique)
+    if (debugOn) p.debug += ("mnud" -> dispersion)
     /* Generally small tokens (especially letters) are matched often which is fine. But sometimes they are part of a
     series of related models (but not the model of the product in question), which this penalty attempts to detect. */
     val extraModelDispersionPenalty =
-      if (dispersion < 12 && p.Model.allMatchesCount / 2.5 > p.Model.tokenCount) dispersion else 0.0
+      if (dispersion <= 11 && p.Model.allMatchesCount / 2.5 > p.Model.tokenCount) dispersion else 0.0
     p.Model.dispersion + extraModelDispersionPenalty < 3
   }
 
@@ -126,7 +130,7 @@ object Algorithm {
   /** In an ideal product/listing match, the token matches from product name should be at the same positions as the
     *  model matches. */
   private def clusterDifference(p: PairHolder) = {
-    p.Model.clusterDifferenceCount <= 0.5
+    p.Model.clusterDifferenceCount.toDouble / p.Model.tokenCount <= 0.5
   }
 
   /* --- */
@@ -146,10 +150,11 @@ object Algorithm {
     }
   }
 
-  private def isPotentialMatch(pair: PairHolder): Boolean = {
+  // fixme remove
+  private[matching] def isPotentialMatch(pair: PairHolder): Boolean = {
     val statuses = matchingConditions map { _(pair) }
     val pass = statuses forall { _ == true }
-    if (debugOn) pair.debug = statuses
+    if (debugOn) pair.debugConditions = statuses
     pass
   }
 
