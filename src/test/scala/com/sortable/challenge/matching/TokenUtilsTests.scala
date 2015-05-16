@@ -93,13 +93,15 @@ class TokenUtilsTests extends FlatSpec with Matchers {
     result should contain noneOf((t, 0, 13, "b"), (t, 0, 0, "10"), (t, 0, 19, "d"))
   }
 
-  "Impure model modifiers" should "be detected correctly" in {
-    val set1 = Set((_t, 0, 0, "mod"), (_t, 0, 6, "10"))
-    val set2 = Set((_t, 0, 0, "4"), (_t, 0, 5, "mod"), (_t, 0, 11, "10"))
+  "Strict impure tokens" should "be detected correctly" in {
+    val t = TokenMatchType.nameToTitle
+    val tokens =
+      Set((t, 0, 1, "m"), (t, 0, 3, "z"), (t, 0, 5, "d"), (t, 0, 6, "g"), (t, 0, 8, "87"))
+    val listing = new Listing("am z dg 87l", "", "CAD", 0.0)
+    val result = getStrictImpureMatches(tokens, listing)
 
-    getImpurePhraseCount(set1, "modaaa10") shouldBe 0
-    getImpurePhraseCount(set1, "moda4a10") shouldBe 1
-    getImpurePhraseCount(set2, "4a9aamoda7a10") shouldBe 2
+    result should contain allOf((t, 0, 1, "m"), (t, 0, 8, "87"))
+    result should contain noneOf((t, 0, 3, "z"), (t, 0, 5, "d"), (t, 0, 6, "g"))
   }
 
   "Closest letters to numbers" should "be found in origin strings" in {

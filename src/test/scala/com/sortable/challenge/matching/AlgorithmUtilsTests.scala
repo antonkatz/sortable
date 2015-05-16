@@ -58,9 +58,20 @@ class AlgorithmUtilsTests extends FlatSpec with Matchers {
   }
 
   "Simple similarity of two strings" should "be calculated correctly" in {
-    simpleSimilarity("Abc", "addr").get should equal(0.33 +- 0.01)
-    simpleSimilarity("abc", "aaddr").get should equal(0.33 +- 0.01)
-    simpleSimilarity("Abbc", "aabr").get should equal(0.5 +- 0.01)
-    simpleSimilarity("Contax", "sony").get should equal(0.33 +- 0.01)
+    simpleStringSimilarity("Abc", "addr").get should equal(0.33 +- 0.01)
+    simpleStringSimilarity("abc", "aaddr").get should equal(0.33 +- 0.01)
+    simpleStringSimilarity("Abbc", "aabr").get should equal(0.5 +- 0.01)
+    simpleStringSimilarity("Contax", "sony").get should equal(0.33 +- 0.01)
+  }
+
+  "Impure model modifiers" should "be detected correctly" in {
+    val set1 = Set((_t, 0, 0, "mod"), (_t, 0, 6, "10"))
+    val set2 = Set((_t, 0, 0, "4"), (_t, 0, 5, "mod"), (_t, 0, 11, "10"))
+    val set3 = Set((_t, 0, 2, "e"), (_t, 0, 6, "mod"), (_t, 0, 11, "10"))
+
+    getImpureNumericPhraseCount(set1, "modaaa10") shouldBe 0
+    getImpureNumericPhraseCount(set1, "moda4a10") shouldBe 1
+    getImpureNumericPhraseCount(set2, "4a9aamoda7a10") shouldBe 2
+    getImpureNumericPhraseCount(set3, "56eaaamod8s10") shouldBe 1
   }
 }

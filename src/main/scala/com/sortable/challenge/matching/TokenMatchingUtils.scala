@@ -30,17 +30,13 @@ import com.sortable.challenge.matching.TokenMatchType.TokenMatchType
 import scala.language.postfixOps
 
 /**
- * Methods for finding positions of tokens across attributes
+ * Methods for finding positions of tokens across attributes and basic calculations based on those positions.
  */
 object TokenMatchingUtils {
   /**
-   * Type, position in the original attribute, position in the destination (searched in) attribute/string.
+   * Type, position in the original attribute, position in the destination (searched in) attribute/string, token string.
    * The positions are the start positions of a token string inside a string, not relative positions to each other.
    * The second element of the triple can serve as id.
-   *
-   * FIXME
-   * 4th element is the token string
-   * 5th is the destination string
    */
   type TokenMatch = (TokenMatchType, Int, Int, String)
 
@@ -131,7 +127,7 @@ object TokenMatchingUtils {
     }
   }
 
-  private def getLettersAroundDigits(matches: Iterable[TokenMatch]): Iterable[TokenMatch] = {
+  private[matching] def getLettersAroundDigits(matches: Iterable[TokenMatch]): Iterable[TokenMatch] = {
     val mT = matches map { m => matchToToken(m) -> m } toMap
     val aroundDigits = getLettersAroundDigits(mT.keySet)
     mT filterKeys (aroundDigits contains) values
@@ -159,6 +155,17 @@ object TokenMatchingUtils {
         (destinationString.lift(t._3 - 1) exists isImpure)
   }
 
+  def getStrictImpureMatches(matches: Iterable[TokenMatch], listing: Listing): Iterable[TokenMatch] =
+    matches filter { t =>
+    // no unicode
+    def isImpure(pos: Int)(c: Char) = {c.isDigit || c.isLetter} && !matches.exists(_._3 == pos)
+    val destinationString = TokenMatchType.getDestination(t._1, listing)
+      val front = t._3 + t._4.length
+      val back = t._3 - 1
+    (destinationString.lift(front) exists isImpure(front)) ||
+        (destinationString.lift(back) exists isImpure(back))
+  }
+
   /**
    * Counts (with replacement) how many [[TokenMatch]]es from one set appear in the other set with the same string
    * value, but a different destination position.
@@ -167,17 +174,4 @@ object TokenMatchingUtils {
    **/
   def countPositionDifferences(from: Iterable[TokenMatch], in: Iterable[TokenMatch]): Int =
     from count { f => in exists { i => f._4 == i._4 && f._3 != i._3 } }
-
-  /** @usecase Determines if a model modifier match has a digit between it and the closest fully numeric match. */
-  def getImpurePhraseCount(matches: Iterable[TokenMatch], in: String): Int = {
-    def range(m: TokenMatch) = m._3 -> (m._3 + m._4.length)
-
-    val alphabeticRanges = getLettersAroundDigits(matches) map range
-    val numericRanges = matches filter isNumeric map range
-    val allRanges = {alphabeticRanges ++ numericRanges }.toSeq sortBy (_._1)
-    if (allRanges.size < 2) return 0
-
-    val impureZones = allRanges.zip(allRanges.tail) map { p => p._1._2 -> p._2._1 }
-    impureZones count { p => in.substring(p._1, p._2).exists(_ isDigit) }
-  }
 }

@@ -58,6 +58,7 @@ case class PairHolder(product: Product, listing: Listing) {
 
     /** The reordering of matched token in the destination string as compared to origin string. */
     private[matching] val orderChanges = clusters mapValues getOrderChangeAroundPivot
+    private[PairHolder] val impureTokens = clusters mapValues { getImpureMatches(_, listing)}
 
     /** Number of matched tokens, without considering how many matches a single token has within a type category.
       * If a token with the same string value is present across different [[TokenMatchType]] categories it will be 
@@ -69,7 +70,7 @@ case class PairHolder(product: Product, listing: Listing) {
     private[matching] val missingCount = totalTokenCount - typedDistinctMatchCount
     /** How many tokens (that are purely numeric) were not matched at least once. */
     private[matching] val missingNumberCount = totalNumberTokenCount - typedDistinctNumberMatchCount
-    private[matching] val impureTokensCount = {clusters mapValues { getImpureMatches(_, listing).size } values } sum
+    private[matching] val impureMatchesCount = impureTokens map { _._2.size } sum
 
     /** Matched tokens from an origin string will be separated by some distance, which serves as an indication of how
       * relevant the token matches are for determining if the listing is a match to a product. */
@@ -86,7 +87,7 @@ case class PairHolder(product: Product, listing: Listing) {
 
     /** Model numbers often have a letter or a combination of letters acting as a 'modifier'. */
     private[matching] val modifierTokens = getLettersAroundDigits(product.getModelTokens toSet)
-    private[matching] val modifiersCount = modifierTokens.size
+    private[matching] val impureMatchesCount = Global.impureTokens get modelToTitle map { _.size } getOrElse 0
     /** Numeric tokens present in the model of the product that have a digit following in them in the destination
       * string. */
     private[matching] val missingModelModifiers = getMissing(modifierTokens.toSet, uniqueMatches.toSet)
@@ -95,8 +96,9 @@ case class PairHolder(product: Product, listing: Listing) {
     /** The number of tokens extracted from the [[Product]]. */
     private[matching] val tokenCount = product.getModelTokens.length
     private[matching] val allMatchesCount = allMatches.length
+    private[matching] val modifiersCount = modifierTokens.size
     private[matching] val missingModelTokensCount = tokenCount - uniqueMatches.size
-    private[matching] val impureModelPhraseCount = getImpurePhraseCount(uniqueMatches, listing.title)
+    private[matching] val impurePhraseCount = getImpureNumericPhraseCount(uniqueMatches, listing.title)
 
     private[matching] val orderChange = Global.orderChanges get modelToTitle
     /** In an ideal product/listing match, the token matches from product name should be at the same positions as the
@@ -110,7 +112,7 @@ case class PairHolder(product: Product, listing: Listing) {
   object Manufacturer {
     val tokenCount = product.getManufacturerTokens.size
     val manufacturerMatchCount = Global.clusters.getOrElse(manufacturerToTitle, Set()).size
-    val manufacturerSimilarity = simpleSimilarity(product.manufacturer, listing.manufacturer)
+    val manufacturerSimilarity = simpleStringSimilarity(product.manufacturer, listing.manufacturer)
   }
 
   /** Used to debug purposes. When the [[com.sortable.challenge.matching.Algorithm]] makes its decision, it will dump

@@ -42,6 +42,10 @@ object Algorithm {
 
   private val maxPriceSDGap = 0.8
 
+  private val impurityFilterType = TokenMatchType.modelToTitle
+
+  private val impurityFilterMultiplier = 2
+
   /**
    * The only entry point into the algorithm.
    * @return a map with each product as key having a collection of [[PairHolder]]s that have been deemed as a match
@@ -74,7 +78,7 @@ object Algorithm {
   /** The less tokens that have not been matched, the better. */
   private def missing(p: PairHolder) = {
     if (p.Global.totalTokenCount == 0) true
-    else (p.Global.missingCount + p.Global.impureTokensCount).toDouble / p.Global.totalTokenCount < 0.5
+    else (p.Global.missingCount + p.Global.impureMatchesCount).toDouble / p.Global.totalTokenCount < 0.5
   }
 
   private def missingModel(p: PairHolder) = {
@@ -119,8 +123,8 @@ object Algorithm {
     val orderChangePenalty = modelOrderChangePenalty(p)
     // in cases where model tokens have changed order, impurity of those tokens is less important
     val impurityScore =
-      if (orderChangePenalty >= 1.0) p.Model.impureModelPhraseCount / orderChangePenalty
-      else p.Model.impureModelPhraseCount
+      if (orderChangePenalty >= 1.0) p.Model.impurePhraseCount / orderChangePenalty
+      else p.Model.impurePhraseCount
     impurityScore < p.Model.modifiersCount
   }
 
@@ -140,8 +144,9 @@ object Algorithm {
   private[matching] def findMatches(product: Product, listings: Iterable[Listing]):
   Iterable[PairHolder] = {
     val potential = findPotentialMatches(product, listings)
-    val filteredByPrice = Algorithm.filterByPrice(potential.toList)
-    filteredByPrice
+    val filteredByPrice = filterByPrice(potential.toList)
+    val filteredByImpurity = filterByImpurity(filteredByPrice)
+    filteredByImpurity
   }
 
   /** Finds all listings that may match a particular product. Matches are made on one-to-one comparison basis. */
@@ -161,6 +166,19 @@ object Algorithm {
     pass
   }
 
-  private def filterByPrice(matches: List[PairHolder]): List[PairHolder] =
-    AlgorithmUtils.filterByPriceGap(matches, maxPriceSDGap)
+  private def filterByPrice(pairs: List[PairHolder]): List[PairHolder] =
+    AlgorithmUtils.filterByPriceGap(pairs, maxPriceSDGap)
+
+  private def filterByImpurity(pairs: Iterable[PairHolder]): Iterable[PairHolder] = {
+    AlgorithmUtils.getPerfectImpurityAvg(pairs, impurityFilterType) map { perfectLevel =>
+      val limit = perfectLevel * impurityFilterMultiplier
+      pairs filter { p =>
+        p.Global.clusters get impurityFilterType map { matchesOfType =>
+          val impure = TokenMatchingUtils.getStrictImpureMatches(matchesOfType, p.listing).size
+          if (debugOn) p.debug += ("fii" -> impure, "fil" -> limit)
+          impure <= limit
+        } getOrElse true;
+      }
+    } getOrElse pairs
+  }
 }

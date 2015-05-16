@@ -23,6 +23,7 @@ THE SOFTWARE.
 */
 package com.sortable.challenge.matching
 
+import com.sortable.challenge.matching.TokenMatchType.TokenMatchType
 import com.sortable.challenge.matching.TokenMatchingUtils.TokenMatch
 
 /**
@@ -61,10 +62,10 @@ object AlgorithmUtils {
 
   /** Computes the percentage of occurrences of characters from one string (of) in a different string (to) without
     * replacement. */
-  def simpleSimilarity(of: String, to: String): Option[Double] = {
+  def simpleStringSimilarity(of: String, to: String): Option[Double] = {
     if (of.isEmpty || to.isEmpty) return None
     val toChars = to.toLowerCase.toBuffer
-    val count: Int = of.toLowerCase.foldLeft (0) { (count: Int, char: Char) =>
+    val count: Int = of.toLowerCase.foldLeft(0) { (count: Int, char: Char) =>
       val index = toChars indexOf char
       if (index > -1) {
         toChars.remove(index)
@@ -74,6 +75,58 @@ object AlgorithmUtils {
     Option(count.toDouble / of.length)
   }
 
+  /**
+   * Given a collection of matches that contain both fully numeric tokens and fully alphabetic tokens, determines how
+   * many instances there are where a digit comes between an alphabetic match and a numeric match. 
+   * @usecase Determines if a model modifier match has a digit between it and the closest fully numeric match.
+   */
+  def getImpureNumericPhraseCount(matches: Iterable[TokenMatch], in: String): Int = {
+    def range(m: TokenMatch) = m._3 -> (m._3 + m._4.length)
+
+    val alphabeticRanges = TokenMatchingUtils.getLettersAroundDigits(matches) map range
+    val numericRanges = matches filter TokenMatchingUtils.isNumeric map range
+    val allRanges = {alphabeticRanges ++ numericRanges }.toSeq sortBy (_._1)
+    if (allRanges.size < 2) return 0
+
+    val impureZones = allRanges.zip(allRanges.tail) map { p => p._1._2 -> p._2._1 }
+    impureZones count { p => in.substring(p._1, p._2).exists(_ isDigit) }
+  }
+
+  private[matching] def filterByPriceGap(pairs: List[PairHolder], maxSdGap: Double): List[PairHolder] = {
+    val sd = computeMatchSd(pairs)
+    val sortedByPrice =
+      pairs map { m => m -> m.listing.adjustedPrice } collect { case (m, Some(p)) => m -> p } sortBy (_._2)
+    val sortedPrices = sortedByPrice map (_._2)
+    val sortedMatches = sortedByPrice map (_._1)
+
+    sortedPrices match {
+      case head :: tail =>
+        val neighbourDistances = sortedPrices.tail.foldLeft { (sortedPrices.head, List[Double]()) } {
+          (f: (Double, List[Double]), p: Double) => (p, f._2 :+ { p - f._1 })
+        } _2
+        var gapPositions: List[Int] =
+          neighbourDistances.zipWithIndex collect { case (d, i) if d / sd > maxSdGap => i + 1 } sorted;
+        gapPositions = 0 +: gapPositions :+ sortedByPrice.length
+        val clusters = { gapPositions zip gapPositions.tail } map { case (s, e) => sortedMatches.slice(s, e) }
+        clusters.sortBy(_.size) last
+      case _ => pairs
+    }
+  }
+
+  private[matching] def getPerfectImpurityAvg(pairs: Iterable[PairHolder], ofType: TokenMatchType): Option[Double] = {
+    val perfect = pairs filter {_.Global.missingCount == 0}
+    val impurities = perfect map {pair =>
+        pair.Global.clusters get ofType map {matchesOfType =>
+          TokenMatchingUtils.getStrictImpureMatches(matchesOfType, pair.listing) size  
+        }
+      } flatten;
+    if (impurities isEmpty) {
+      None
+    } else {
+      Option(impurities.sum.toDouble / impurities.size)
+    }
+  }
+  
   /** Assuming sample data, rather than the whole population. */
   private def computeSD(iterable: Iterable[Double]): Double = {
     val size = iterable.size
@@ -85,28 +138,6 @@ object AlgorithmUtils {
   private def computeMatchSd(matches: Iterable[PairHolder]): Double = computeSD(getPrices(matches))
 
   private def getPrices(matches: Iterable[PairHolder]) = matches map { _.listing.adjustedPrice } flatten
-
-  private[matching] def filterByPriceGap(matches: List[PairHolder], maxSdGap: Double): List[PairHolder] =
-  {
-    val sd = computeMatchSd(matches)
-    val sortedByPrice =
-      matches map { m => m -> m.listing.adjustedPrice } collect { case (m, Some(p)) => m -> p } sortBy(_._2)
-    val sortedPrices = sortedByPrice map (_._2)
-    val sortedMatches = sortedByPrice map (_._1)
-
-    sortedPrices match {
-      case head :: tail =>
-        val neighbourDistances = sortedPrices.tail.foldLeft {(sortedPrices.head, List[Double]())} {
-          (f: (Double, List[Double]), p: Double) => (p, f._2 :+ {p - f._1})
-        } _2
-        var gapPositions:List[Int] =
-          neighbourDistances.zipWithIndex collect{case (d, i) if d / sd > maxSdGap => i + 1} sorted;
-        gapPositions = 0 +: gapPositions :+ sortedByPrice.length
-        val clusters = {gapPositions zip gapPositions.tail} map {case (s,e) => sortedMatches.slice(s, e)}
-        clusters.sortBy(_.size) last
-      case _ => matches
-    }
-  }
 
   private[matching] def produceCombinationsFromBins[T](choiceBins: List[List[T]]): List[List[T]] =
     choiceBins match {
