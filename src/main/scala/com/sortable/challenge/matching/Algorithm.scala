@@ -40,13 +40,13 @@ object Algorithm {
     modelModifiers, manufacturer, clusterDifference
   )
 
-  private val maxPriceSDGap = 0.9
+  private val maxPriceSDGap = 0.8
 
   /**
    * The only entry point into the algorithm.
    * @return a map with each product as key having a collection of [[PairHolder]]s that have been deemed as a match
    */
-  def findMatches(products: Set[Product], listings: Set[Listing]): Map[Product, Iterable[PairHolder]] =
+  def findMatches(products: Iterable[Product], listings: Iterable[Listing]): Map[Product, Iterable[PairHolder]] =
     products.par.map({ p => p -> findMatches(p, listings) }).toList.toMap
 
   /*
@@ -94,10 +94,12 @@ object Algorithm {
 
   private def dispersion(p: PairHolder) = {
     /* Model tokens play an important role in determining if a listing is a match to a product. Tightly clustered
-     model tokens can offset the global (average) dispersion limit. */
+     model tokens can offset the global (average) dispersion limit */
     val dispersionOffset =
       p.Global.nonZeroDispersions.get(TokenMatchType.modelToTitle) map (d => 4 / (d + 1)) getOrElse 0.0
-    p.Global.avgDispersion < 6 + dispersionOffset
+    /* If there are no missing tokens, a pair will get a huge offset */
+    val presentOffset = 6 / Math.pow(p.Global.missingCount + 1, 2)
+    p.Global.avgDispersion < 6 + dispersionOffset + presentOffset
   }
 
   private def modelDispersion(p: PairHolder) = {
@@ -143,10 +145,11 @@ object Algorithm {
   }
 
   /** Finds all listings that may match a particular product. Matches are made on one-to-one comparison basis. */
-  private def findPotentialMatches(product: Product, listings: Iterable[Listing]): Set[PairHolder] = {
-    listings.foldLeft { Set[PairHolder]() } { (seq: Set[PairHolder], listing: Listing) =>
+  private def findPotentialMatches(product: Product, listings: Iterable[Listing]): Iterable[PairHolder] = {
+    /* Not a set because some listings are identical */
+    listings.foldLeft { Seq[PairHolder]() } { (seq: Seq[PairHolder], listing: Listing) =>
       val pair = new PairHolder(product, listing)
-      if (isPotentialMatch(pair)) seq + pair else seq
+      if (isPotentialMatch(pair)) seq :+ pair else seq
     }
   }
 

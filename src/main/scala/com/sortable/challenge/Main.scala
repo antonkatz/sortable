@@ -24,45 +24,56 @@ THE SOFTWARE.
 package com.sortable.challenge
 
 import com.sortable.challenge.JsonUtils.{convertToListings, convertToProducts}
-import com.sortable.challenge.matching.{Algorithm, AlgorithmUtils, PairHolder}
+import com.sortable.challenge.matching.Algorithm
 import com.sortable.challenge.{SimpleLogger => Log}
 
 import scala.io.Source
 import scala.language.postfixOps
-import scala.util.Try
+
 /**
  * Ties together high level functions at the entry point.
  */
 object Main {
-	def main(args: Array[String]): Unit = {
-		if (args.length != 2) {
-			Log.error("Arguments should be: [products path] [listings path]")
-			throw new IllegalArgumentException
-		}
+  def main(args: Array[String]): Unit = {
+    if (args.length != 2) {
+      Log.error("Arguments should be: [products path] [listings path]")
+      throw new IllegalArgumentException
+    }
 
-		val productPath: String = args(0)
-		val listingPath: String = args(1)
-		val data = loadDataFromFiles(productPath, listingPath) orElse {
-			Log.error("Could not load the data from files.")
-			None
-		}
+    val productPath: String = args(0)
+    val listingPath: String = args(1)
+    val data = loadDataFromFiles(productPath, listingPath) orElse {
+      Log.error("Could not load the data from files.")
+      None
+    }
 
-		/*  Find matches. Could remove listings as matches are found (for performance),
-		but that would complicate quality analysis of the algorithm. */
-//		val matches = data map {d => findMatches(d._1, d._2)}
-//		val matches = data map {d => findMatches(Set(d._1.toSeq.slice(20, 30).find{_.name.contains("930")} get), d._2)}
-		val matches = data map {d => Algorithm.findMatches(d._1 take 30 drop 20, d._2)}
-		matches
+    /*  Find matches. Could remove listings as matches are found (for accuracy and possibly performance),
+    but that would complicate the algorithm beyond the scope of this project */
+    val matches = data map { d => Algorithm.findMatches(d._1 take 30 drop 20, d._2) }
+    matches
 
-		// check if any of the listings have been matched twice, indicating a bad algorithm
-	}
+    /* Should check if any of the listings have been matched twice indicating problems, but will opt out not to */
+  }
 
-	private[challenge] def loadDataFromFiles(productPath: String, listingPath: String): Option[(Set[Product], Set[Listing])] = {
-		val productContents = Source.fromFile(productPath).getLines()
-		val listingContents = Source.fromFile(listingPath).getLines()
-		val products = convertToProducts(productContents.toSeq)
-		val listings = convertToListings(listingContents.toSeq)
+  private[challenge] def loadDataFromFiles(productPath: String, listingPath: String): Option[(Seq[Product],
+      Seq[Listing])] = {
+    val productContents = Source.fromFile(productPath).getLines() toSeq
+    val listingContents = Source.fromFile(listingPath).getLines() toSeq
+    /* These are not sets because some are identical */
+    val products = convertToProducts(productContents)
+    val listings = convertToListings(listingContents)
 
-		products map { p => listings map { l => (p, l) } } flatten
-	}
+    products map { p => listings map { l =>
+      loadWarning(productContents, p, "products")
+      loadWarning(listingContents, l, "listings")
+      (p, l)
+    }
+    } flatten
+  }
+
+  private def loadWarning[T](lines: Iterable[String], items: Iterable[T], what: String) =
+    if (lines.count(_ nonEmpty) != items.size) {
+      val msg = "The number of %1$s loaded does not match the number of %1$s available".format(what)
+      Log.warn(msg)
+    }
 }
