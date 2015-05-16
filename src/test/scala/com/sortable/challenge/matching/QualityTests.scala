@@ -11,12 +11,13 @@ class QualityTests extends FlatSpec with Matchers {
   val listingPath: String = "data/listings.txt"
   val data = Main.loadDataFromFiles(productPath, listingPath)
 
-  "Sony Alpha NEX-5" should "have 63 matches" in {
+  "Sony Alpha NEX-5" should "have 80 (-4) matches" in {
     // listings with letters at the end (ex. nex-5k) are referring to the same model
     val nex5 = data flatMap {_._1 find(p => p.name == "Sony_Alpha_NEX-5")}
     val matches = nex5 map {p => Algorithm.findMatches(p, data.get._2)}
 
-    matches.get should have size (4-1)
+    // all are lost on having too many model matches
+    matches.get should have size (80 - 4)
   }
 
   "Casio Exilim EX-FH25" should "have 4 (-1) matches" in {
@@ -24,15 +25,15 @@ class QualityTests extends FlatSpec with Matchers {
     val matches = fh25 map {p => Algorithm.findMatches(p, data.get._2)}
 
     // filtered by price
-    matches.get should have size (4-1)
+    matches.get should have size (4 - 1)
   }
 
-  "Pentax K-R" should "have 63 matches" in {
+  "Pentax K-R" should "have 63 (-1) matches" in {
     val kr = data flatMap {_._1 find(p => p.name == "Pentax_K-r")}
     val matches = kr map {p => Algorithm.findMatches(p, data.get._2)}
 
     // filtered by having too many random model matches
-    matches.get should have size 63
+    matches.get should have size (63 - 1)
   }
 
   "Pentax K-X" should "have 97 (-1 + -2) matches" in {
@@ -65,7 +66,7 @@ class QualityTests extends FlatSpec with Matchers {
     matches.get should have size (22 - 1)
   }
 
-  "Nikon S640" should "have 13 (-1) matches" in {
+  "Nikon S640" should "have 13 (-1 | -0) matches" in {
     val s640 = data flatMap {_._1 find(p => p.model == "S640" && p.manufacturer == "Nikon")}
     val matches = s640 map {p => Algorithm.findMatches(p, data.get._2)}
 

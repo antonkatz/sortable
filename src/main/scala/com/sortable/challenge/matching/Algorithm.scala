@@ -107,7 +107,7 @@ object Algorithm {
     /* Generally small tokens (especially letters) are matched often which is fine. But sometimes they are part of a
     series of related models (but not the model of the product in question), which this penalty attempts to detect. */
     val extraModelDispersionPenalty =
-      if (dispersion <= 11 && p.Model.allMatchesCount / 2.5 > p.Model.tokenCount) dispersion else 0.0
+      if (dispersion > 4 && dispersion <= 11 && p.Model.allMatchesCount / 2.5 > p.Model.tokenCount) dispersion else 0.0
     p.Model.dispersion + extraModelDispersionPenalty < 3
   }
 
