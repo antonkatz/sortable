@@ -30,6 +30,7 @@ import com.sortable.challenge.TokenizationUtils._
  * Case classes for convenient representation of underlying data.
  */
 case class Product(name: String, manufacturer: String, model: String, family: Option[String]) extends DataHolder {
+  /** Which are used to split the attributes/strings into tokens. */
   private val delimiters = Set(' ', '_', '-', '/', '(', ')')
 
   private val nameTokens: Seq[Token] = tokenize(name, delimiters)
@@ -48,16 +49,21 @@ case class Product(name: String, manufacturer: String, model: String, family: Op
 
 // used double instead of BigDecimal for performance
 case class Listing(var title: String, var manufacturer: String, currency: String, price: Double) extends DataHolder {
+  /** The original string of the listing, before any processing. */
   val originalTitle = title
   title = title.toLowerCase
   manufacturer = manufacturer.toLowerCase
 
+  /** Price adjusted for difference in currency values. In other words this is the absolute price used by the
+    * algorithm. */
   val adjustedPrice = PriceConverter.convert(price, currency)
 }
 
 trait DataHolder {
-  /** Wrapper around [[com.sortable.challenge.TokenizationUtils.tokenizeWithIndex]] that logs a message if there are
-    * problems. */
+  /**
+   * Wrapper around [[com.sortable.challenge.TokenizationUtils.tokenizeWithIndex]] that logs a message if there are
+   * problems.
+   */
   def tokenize(str: String, delimiters: Set[Char]): Seq[Token] = {
     val tokens = tokenizeWithIndex(str, delimiters) map strictCleanToken
     if (tokens.contains(None)) {
