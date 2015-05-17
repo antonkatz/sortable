@@ -14,7 +14,7 @@ class AlgorithmUtilsTests extends FlatSpec with Matchers {
 
   "Several bins (list of lists)" should "be correctly combined" in {
     val testBins = List(List(1, 2), List(2, 3), List(4, 5))
-    val result = produceCombinationsFromBins(testBins)
+    val result = producePermutationsFromBins(testBins)
 
     result should contain allOf(List(1, 2, 4), List(1, 3, 4), List(2, 2, 5))
     result.size should equal(result.toSet.size)

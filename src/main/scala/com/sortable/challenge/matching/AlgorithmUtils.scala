@@ -38,12 +38,12 @@ object AlgorithmUtils {
    *                     can repeat
    * @return [[TokenMatch]]es with no tokens repeating
    */
-  def findTightestCluster(tokenMatches: Iterable[TokenMatch]): Iterable[TokenMatch] = {
+  private[matching] def findTightestCluster(tokenMatches: Iterable[TokenMatch]): Iterable[TokenMatch] = {
     /* todo this should not try to find the tightest cluster, but the one most similar to the one in the listing.
      * "model-num" should match "model num" more readily than "modelnum" */
     val tokenGroups = tokenMatches groupBy (_._2) mapValues (_ toList)
     val groupCount = tokenGroups.size
-    val combinations = produceCombinationsFromBins(tokenGroups.values toList)
+    val combinations = producePermutationsFromBins(tokenGroups.values toList)
     val averagePositions = combinations map { _.map(_._3).sum.toDouble / groupCount }
     val distances = combinations zip averagePositions map { c =>
       val (comb, avg) = c
@@ -53,16 +53,16 @@ object AlgorithmUtils {
   }
 
   /** @return Average distance between token matches. */
-  def computeAverageDispersion(tokens: Iterable[TokenMatch]): Double = {
+  private[matching] def computeAverageDispersion(tokens: Iterable[TokenMatch]): Double = {
     val boundaries = { tokens map { t => t._3 -> (t._3 + t._4.length) } toSeq } sortBy (_._1)
     if (boundaries.size < 2) return 0.0
     val gaps = boundaries.zip(boundaries.tail) map { b => b._2._1 - b._1._2 }
     gaps.sum.toDouble / gaps.size
   }
 
-  /** Computes the percentage of occurrences of characters from one string (of) in a different string (to) without
-    * replacement. */
-  def simpleStringSimilarity(of: String, to: String): Option[Double] = {
+  /** @return the percentage of occurrences of characters from one string in a different string without
+    *         replacement. */
+  private[matching] def simpleStringSimilarity(of: String, to: String): Option[Double] = {
     if (of.isEmpty || to.isEmpty) return None
     val toChars = to.toLowerCase.toBuffer
     val count: Int = of.toLowerCase.foldLeft(0) { (count: Int, char: Char) =>
@@ -78,9 +78,10 @@ object AlgorithmUtils {
   /**
    * Given a collection of matches that contain both fully numeric tokens and fully alphabetic tokens, determines how
    * many instances there are where a digit comes between an alphabetic match and a numeric match. 
-   * @usecase Determines if a model modifier match has a digit between it and the closest fully numeric match.
+   * @usecase Determines if a model modifier match has a digit between it and the closest fully numeric match, which
+   *          implies a worse quality match between a product and a listing.
    */
-  def getImpureNumericPhraseCount(matches: Iterable[TokenMatch], in: String): Int = {
+  private[matching] def getImpureNumericPhraseCount(matches: Iterable[TokenMatch], in: String): Int = {
     def range(m: TokenMatch) = m._3 -> (m._3 + m._4.length)
 
     val alphabeticRanges = TokenMatchingUtils.getLettersAroundDigits(matches) map range
@@ -92,8 +93,20 @@ object AlgorithmUtils {
     impureZones count { p => in.substring(p._1, p._2).exists(_ isDigit) }
   }
 
+  /**
+   * @usecase Once [[PairHolder]]es pass one-to-one stage of the algorithm, some of the matches in a collection of
+   *          matches for a particular product may contain items that differ significantly from the majority based on
+   *          price (eg. accessories). In those cases the prices tend to fall into groups, rather than occupying a
+   *          continuous space.
+   *          This method finds gaps in the prices, and based on those gaps splits the prices into groups. The
+   *          largest group is the one that passes this filter.
+   * @param pairs all potential matches for a single product
+   * @param maxSdGap maximum number of standard deviations between two price points for the space between those
+   *                 points to be considered a gap
+   * @return a list of [[PairHolder]]s that are not obviously overpriced or underpriced.
+   */
   private[matching] def filterByPriceGap(pairs: List[PairHolder], maxSdGap: Double): List[PairHolder] = {
-    val sd = computeMatchSd(pairs)
+    val sd = computePriceSd(pairs)
     val sortedByPrice =
       pairs map { m => m -> m.listing.adjustedPrice } collect { case (m, Some(p)) => m -> p } sortBy (_._2)
     val sortedPrices = sortedByPrice map (_._2)
@@ -113,21 +126,30 @@ object AlgorithmUtils {
     }
   }
 
+  /**
+   * Filters for [[PairHolder]]es that have no missing tokens, and calculates their average strict impurity.
+   * @usecase When comparing [[PairHolder]] for a product between each other, a useful metric is to compare strict
+   *          impurities count to that of the best matches
+   * @param pairs a collection of [[PairHolder]]es for a particular product
+   * @param ofType [[TokenMatchType]] of tokens to consider when computing the impurities
+   * @return an average impurity of the best tokens, if there are any best tokens
+   * @see [[TokenMatchingUtils.getStrictImpureMatches]]
+   */
   private[matching] def getPerfectImpurityAvg(pairs: Iterable[PairHolder], ofType: TokenMatchType): Option[Double] = {
-    val perfect = pairs filter {_.Global.missingCount == 0}
-    val impurities = perfect map {pair =>
-        pair.Global.clusters get ofType map {matchesOfType =>
-          TokenMatchingUtils.getStrictImpureMatches(matchesOfType, pair.listing) size  
-        }
-      } flatten;
+    val perfect = pairs filter { _.Global.missingCount == 0 }
+    val impurities = perfect map { pair =>
+      pair.Global.clusters get ofType map { matchesOfType =>
+        TokenMatchingUtils.getStrictImpureMatches(matchesOfType, pair.listing) size
+      }
+    } flatten;
     if (impurities isEmpty) {
       None
     } else {
       Option(impurities.sum.toDouble / impurities.size)
     }
   }
-  
-  /** Assuming sample data, rather than the whole population. */
+
+  /** @return standard deviation of all values in a collection */
   private def computeSD(iterable: Iterable[Double]): Double = {
     val size = iterable.size
     val avg = iterable.sum / size
@@ -135,14 +157,24 @@ object AlgorithmUtils {
     Math.sqrt(variance)
   }
 
-  private def computeMatchSd(matches: Iterable[PairHolder]): Double = computeSD(getPrices(matches))
+  /** @return standard deviation of prices of a collection of listings in
+    *         [[com.sortable.challenge.matching.PairHolder]]es */
+  private def computePriceSd(matches: Iterable[PairHolder]): Double = computeSD(getPrices(matches))
 
+  /** @return the adjusted price (by currency) for a listing in a [[PairHolder]]*/
   private def getPrices(matches: Iterable[PairHolder]) = matches map { _.listing.adjustedPrice } flatten
 
-  private[matching] def produceCombinationsFromBins[T](choiceBins: List[List[T]]): List[List[T]] =
+  /**
+   * For example, given 3 bins containing [0, 1], [2], [3, 4] this method will produce a list containing all of
+   * [0, 2, 3] [0, 2, 4] [1, 2, 3] [1, 2, 4]
+   * @param choiceBins a list of bins, where each bin is a list of possible choices
+   * @return all permutations of possible choices, where a position in the permutation can only be filled from a
+   *         respective bin
+   **/
+  private[matching] def producePermutationsFromBins[T](choiceBins: List[List[T]]): List[List[T]] =
     choiceBins match {
       case head :: tail =>
-        val tailComb = produceCombinationsFromBins(tail)
+        val tailComb = producePermutationsFromBins(tail)
         tailComb map (t =>
           head map { h =>
             h :: t
