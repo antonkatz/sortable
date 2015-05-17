@@ -56,7 +56,7 @@ case class PairHolder(product: Product, listing: Listing) {
       t._1 -> matchTokens(t._2._1, t._2._2, t._1)
     } filterNot { _._2 isEmpty }
     /** GroupedMatches with matches removed where the token is contained within a different matched token. For 
-      * example "s" can appear within "dsl". */
+      * example "s" can appear within "dslr". */
     groupedMatches = filterOvermatched(groupedMatches.values flatten) groupBy (_._1)
 
     /** The same token in the origin string can be matched several times in the destination string. Clustering attempts
