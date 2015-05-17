@@ -34,11 +34,11 @@ import scala.util.Try
 object JsonUtils {
 	/**
 	 * Checks that JSON is a valid product representation, and then creates [[Product]] instances.
-	 * @param jsonLines
+	 * @param jsonLines a collections of strings, each representing a product
 	 * @return if all JSON objects that supposed to represent products are valid returns a sequence of all those objects
 	 *         converted into [[Product]]. If a single JSON object is invalid, returns [[None]]
 	 */
-	def convertToProducts(jsonLines: Seq[String]): Option[Seq[Product]] =
+	private[challenge] def convertToProducts(jsonLines: Seq[String]): Option[Seq[Product]] =
 		conversionIterator(jsonLines, { productJson: JsValue =>
 			val args = Seq(productJson \ "product_name", productJson \ "manufacturer", productJson \ "model")
 					.filterNot(isInvalidJsonInst)
@@ -55,11 +55,11 @@ object JsonUtils {
 
 	/**
 	 * Checks that JSON is a valid listing representation, and then creates [[Listing]] instances.
-	 * @param jsonLines
+	 * @param jsonLines a collections of strings, each representing a listing
 	 * @return if all JSON objects that supposed to represent listings are valid returns a sequence of all those objects
 	 *         converted into [[Listing]]. If a single JSON object is invalid, returns [[None]]
 	 */
-	def convertToListings(jsonLines: Seq[String]): Option[Seq[Listing]] =
+	private[challenge] def convertToListings(jsonLines: Seq[String]): Option[Seq[Listing]] =
 		conversionIterator(jsonLines, { listingJson: JsValue =>
 			val args = Seq(listingJson \ "title", listingJson \ "manufacturer", listingJson \ "currency")
 					.filterNot(isInvalidJsonInst)
@@ -80,8 +80,8 @@ object JsonUtils {
 	/**
 	 * Behaviour shared by both product and listing conversions from JSON. Iterates over the lines (ex. from a file) and
 	 * applies a converter function to each individual JSON object.
-	 * @param jsonLines
-	 * @param converter which does the processing of an individual JSON entriy into an object
+	 * @param jsonLines a collections of strings, each string representing an entity (listing or product)
+	 * @param converter which does the processing of an individual JSON entry into an object
 	 * @tparam H type of [[DataHolder]] that the converter function produces
 	 * @return a sequence of instances of [[DataHolder]] if all conversions were successful; otherwise [[None]]
 	 */
