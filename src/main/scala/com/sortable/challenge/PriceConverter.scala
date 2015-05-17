@@ -24,13 +24,17 @@ THE SOFTWARE.
 package com.sortable.challenge
 
 /**
- * Converts prices in different currencies into relative units.
+ * Converts prices in different currencies into absolute units.
  */
 object PriceConverter {
   private val conversionMap = Map("CAD" -> 1.0, "USD" -> 1.2, "EUR" -> 1.4, "GBP" -> 1.9)
 
-  def convert(price: Double, currency: String): Option[Double] = {
-    conversionMap get(currency toUpperCase) map(_ * price) orElse {
+  /**
+   * Converts prices to absolute units based on an internal map of currencies to conversions factors.
+   * @return absolute price or [[None]] if the currency's conversion factor is unknown.
+   */
+  private[challenge] def convert(price: Double, currency: String): Option[Double] = {
+    conversionMap get (currency toUpperCase) map (_ * price) orElse {
       SimpleLogger.warn("Currency not found: %s", currency)
       None
     }
