@@ -20,18 +20,18 @@ class TokenUtilsTests extends FlatSpec with Matchers {
         (_t, 0, 14, "") -> 0, (_t, 10, 5, "") -> -3, (_t, 20, 15, "") -> -1, (_t, 30, 13, "") -> -4)
   }
 
-  "Tokens" should "be split into two tokens if they contain any number of digits, with the correct indexes" in {
-    Seq(("test16test5", 10), ("1test", 0), ("test", 0), ("5000t", 0)) flatMap {
-      TokenizationUtils.splitTokenWithNumber
+  "Tokens" should "be split into fully numeric and fully alphabetic tokens" in {
+    Seq(("test16trest5", 10), ("1test", 0), ("test", 0), ("5000t", 0)) flatMap {
+      TokenizationUtils.splitTokenWithDigits
     } should contain allOf(
-        ("test", 10), ("16test5", 14), ("1", 0), ("test", 1), ("test", 0), ("5000", 0), ("t", 4))
+        ("test", 10), ("16", 14), ("trest", 16), ("5", 21), ("1", 0), ("test", 1), ("test", 0), ("5000", 0), ("t", 4))
   }
 
   "Tokenization" should "be executed correctly" in {
     Seq("ttest16test5", "1test", "test", "5000t") flatMap { t =>
       TokenizationUtils.tokenizeWithIndex(t, Set(' ', '_', '-', '/'))
-    } should
-        contain allOf(("ttest", 0), ("16test5", 5), ("1", 0), ("test", 1), ("test", 0), ("5000", 0), ("t", 4))
+    } should contain allOf(
+        ("ttest", 0), ("16", 5), ("test", 7), ("5", 11), ("1", 0), ("test", 1), ("test", 0), ("5000", 0), ("t", 4))
   }
 
   /** Related tests of token matching/filtering. */

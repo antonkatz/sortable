@@ -14,8 +14,30 @@ class QualityTests extends FlatSpec with Matchers {
   private val listingPath: String = "data/listings.txt"
   private val data = Main.loadDataFromFiles(productPath, listingPath)
 
+  "Fujifilm FinePix F70EXR" should "have 18 (-1) matches" in {
+    val f70 = data flatMap { _._1 find (p => p.name == "Fujifilm_FinePix_F70EXR") }
+    val matches = f70 map { p => Algorithm.findMatches(p, data.get._2) }
+
+    // one filtered on price
+    matches.get should have size (18 - 1)
+  }
+
+  "Olympus-TG310" should "have 70 (-2) matches" in {
+    val tg310 = data flatMap { _._1 find (p => p.name == "Olympus-TG310") }
+    val matches = tg310 map { p => Algorithm.findMatches(p, data.get._2) }
+
+    // 2 listings are fairly poor
+    matches.get should have size (70 - 2)
+  }
+
+  "Kyocera Yashica Finecam 3300" should "have no matches" in {
+    val kyo = data flatMap { _._1 find (p => p.name == "Kyocera_Yashica_Finecam_3300") }
+    val matches = kyo map { p => Algorithm.findMatches(p, data.get._2) }
+
+    matches.get shouldBe empty
+  }
+
   "Canon Digital IXUS 100 IS" should "have 15 matches" in {
-    // listings with letters at the end (ex. nex-5k) are referring to the same model
     val ixus100 = data flatMap { _._1 find (p => p.name == "Canon_Digital_IXUS_100_IS") }
     val matches = ixus100 map { p => Algorithm.findMatches(p, data.get._2) }
 
@@ -23,7 +45,6 @@ class QualityTests extends FlatSpec with Matchers {
   }
 
   "Fujifilm XP30" should "have 52 matches" in {
-    // listings with letters at the end (ex. nex-5k) are referring to the same model
     val xp30 = data flatMap { _._1 find (p => p.name == "Fujifilm-XP30") }
     val matches = xp30 map { p => Algorithm.findMatches(p, data.get._2) }
 
@@ -32,7 +53,6 @@ class QualityTests extends FlatSpec with Matchers {
   }
 
   "Casio TRYX" should "have 4 (-1) matches" in {
-    // listings with letters at the end (ex. nex-5k) are referring to the same model
     val tryx = data flatMap { _._1 find (p => p.name == "Casio-TRYX") }
     val matches = tryx map { p => Algorithm.findMatches(p, data.get._2) }
 
@@ -41,7 +61,6 @@ class QualityTests extends FlatSpec with Matchers {
   }
 
   "Kodak Slice" should "have 35 matches" in {
-    // listings with letters at the end (ex. nex-5k) are referring to the same model
     val slice = data flatMap { _._1 find (p => p.name == "Kodak-slice") }
     val matches = slice map { p => Algorithm.findMatches(p, data.get._2) }
 
@@ -73,12 +92,12 @@ class QualityTests extends FlatSpec with Matchers {
     matches.get should have size 65
   }
 
-  "Pentax K-X" should "have 104 (-2 + -2) matches" in {
+  "Pentax K-X" should "have 104 (-2) matches" in {
     val kx = data flatMap { _._1 find (p => p.name == "Pentax_K-x") }
     val matches = kx map { p => Algorithm.findMatches(p, data.get._2) }
 
-    // 2 filtered by price, 2 by model being too far from manufacturer
-    matches.get should have size (104 - 4)
+    // 2 by model being too far from manufacturer
+    matches.get should have size (104 - 2)
   }
 
   "Sony S930" should "have 14 matches" in {

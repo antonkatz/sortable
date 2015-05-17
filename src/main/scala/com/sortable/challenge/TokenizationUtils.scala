@@ -33,30 +33,39 @@ object TokenizationUtils {
 
 	private val numberPattern = "[0-9]+".r
 
-	// also splits tokens with digits into two tokens
 	def tokenizeWithIndex(str: String, delimiters: Set[Char], offset: Int = 0): Seq[Token] = {
 		val tokens = findNext(str, delimiters) match {
-			case None => splitTokenWithNumber (str, offset)
+			case None => splitTokenWithDigits (str, offset)
 			case Some(tokenEnd) =>
 				val token = str.substring(0, tokenEnd).trim
 				val remaining = str.substring(tokenEnd + 1)
-				val generated = splitTokenWithNumber (token, offset)
+				val generated = splitTokenWithDigits (token, offset)
 				generated ++ tokenizeWithIndex(remaining, delimiters, offset + tokenEnd + 1)
 		}
 		tokens filterNot {_._1 isEmpty}
 	}
 
-	// always splits digits into two tokens, no matter how many groups exist
-	private[challenge] def splitTokenWithNumber(token: Token): Seq[Token] = {
-		token._1 find {_ isDigit} match {
-			case Some(d) =>
-				val firstNumber = if (token._1.head isDigit) numberPattern findFirstIn token._1 get else ""
-				val firstNumberOffset = firstNumber.length
-				val i = token._1 indexOf d
-				val offset = token._2
-				Seq((token._1 substring(0, i + firstNumberOffset), offset),
-					(token._1 substring(i + firstNumberOffset), i + offset + firstNumberOffset))
-			case None => Seq(token)
+	/** Splits a token into fully numeric and fully alphabetic groups while preserving index. */
+	private[challenge] def splitTokenWithDigits(token: Token): Seq[Token] = {
+		token._1 exists {_ isDigit} match {
+			case true =>
+				val isFirstDigit = token._1.head isDigit
+				val indexes = token._1.foldLeft {(isFirstDigit, 0, Seq[Int]())} {(holder, char) =>
+					val (isLastDigit, index, seq) = holder
+					val isDigit = char.isDigit
+					var updatedSeq = seq
+					if (isDigit != isLastDigit) updatedSeq :+= index
+					(isDigit, index + 1, updatedSeq)
+				} _3
+				val splitting = indexes.foldLeft {(0, Seq[Token]())} {(holder, index) =>
+					val (last, seq) = holder
+					val t = (token._1 substring(last, index), last + token._2)
+					(index, seq :+ t)
+				}
+				// adding the tail
+				val t = (token._1 substring(splitting _1), splitting._1 + token._2)
+				splitting._2 :+ t
+			case false => Seq(token)
 		}
 	}
 
@@ -72,7 +81,7 @@ object TokenizationUtils {
 	 * @return if there are several alphanumeric blocks in the token or if there are none returns [[None]], else the
 	 *         token with only alphanumeric characters
 	 */
-	def strictTrimToken(token: Token): Option[Token] = {
+	def strictCleanToken(token: Token): Option[Token] = {
 		val (str, index) = token
 		val matches = (cleanPattern findAllIn str.toLowerCase).toSeq
 		if (matches.size == 1) Option((matches.head, index)) else None

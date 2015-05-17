@@ -30,7 +30,7 @@ import com.sortable.challenge.TokenizationUtils._
  * Case classes for convenient representation of underlying data.
  */
 case class Product(name: String, manufacturer: String, model: String, family: Option[String]) extends DataHolder {
-  private val delimiters = Set(' ', '_', '-', '/')
+  private val delimiters = Set(' ', '_', '-', '/', '(', ')')
 
   private val nameTokens: Seq[Token] = tokenize(name, delimiters)
   private val manufacturerTokens: Seq[Token] = tokenize(manufacturer, delimiters)
@@ -59,7 +59,7 @@ trait DataHolder {
   /** Wrapper around [[com.sortable.challenge.TokenizationUtils.tokenizeWithIndex]] that logs a message if there are
     * problems. */
   def tokenize(str: String, delimiters: Set[Char]): Seq[Token] = {
-    val tokens = tokenizeWithIndex(str, delimiters) map strictTrimToken
+    val tokens = tokenizeWithIndex(str, delimiters) map strictCleanToken
     if (tokens.contains(None)) {
       debug("Was not able to clean some of the tokens: %s", str)
     }

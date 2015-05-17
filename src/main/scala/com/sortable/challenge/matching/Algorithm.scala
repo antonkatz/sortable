@@ -36,11 +36,11 @@ object Algorithm {
   private val matchingConditions = Seq[(PairHolder) => Boolean](
     orderChange, modelOrderChange,
     missing, missingModel, missingNumber, //4
-    dispersion, modelDispersion,
+    dispersion, modelDispersion, inFront,
     modelModifiers, manufacturer, clusterDifference
   )
 
-  private val maxPriceSDGap = 0.8
+  private val maxPriceSDGap = 1.0
 
   private val impurityFilterType = TokenMatchType.modelToTitle
 
@@ -117,6 +117,12 @@ object Algorithm {
     p.Model.dispersion + extraModelDispersionPenalty < 3
   }
 
+  /** In an ideal match the main object should be in the front of the listings title. */
+  private def inFront(p: PairHolder) = {
+    val positions = {p.Global.clusters.values flatten}.toSeq map(_._3) sorted;
+    positions.headOption map {_ < 35} getOrElse true
+  }
+
   private def modelModifiers(p: PairHolder): Boolean = {
     if (p.Model.modifierTokens.isEmpty) return true
     // recalculating order change penalty, rather than storing it in PairHolder
@@ -130,7 +136,7 @@ object Algorithm {
 
   private def manufacturer(p: PairHolder) = {
     p.Manufacturer.manufacturerMatchCount.toDouble / p.Manufacturer.tokenCount > 0.5 ||
-        p.Manufacturer.manufacturerSimilarity.map(_ > 0.5).getOrElse(true)
+        p.Manufacturer.manufacturerSimilarity.map(_ >= 0.5).getOrElse(true)
   }
 
   /** In an ideal product/listing match, the token matches from product name should be at the same positions as the
