@@ -26,13 +26,14 @@ package com.sortable.challenge.matching
 import com.sortable.challenge.{Listing, Product}
 
 /**
- * Does 'scoring'/filtering and determines product to listing matches
+ * Does 'scoring'/filtering and determines product to listing matches.
  */
 object Algorithm {
-  private val debugOn = true
+  /** If true, certain conditions/methods will have side effects on [[PairHolder]]s for easier debugging and quality analysis. */
+  private val debugOn = false
 
   /** A one-on-one product to listing comparison must satisfy all these conditions to move on the next round of 
-    * filtering (which is filtering by price at the moment). */
+    * filtering (filtering by price and similarity/impurity). */
   private val matchingConditions = Seq[(PairHolder) => Boolean](
     orderChange, modelOrderChange,
     missing, missingModel, missingNumber, //4
@@ -40,10 +41,23 @@ object Algorithm {
     modelModifiers, manufacturer, clusterDifference
   )
 
+  /** The max distance in SD from one price point to the next for it to be considered a gap. Used to filter
+    * [[PairHolder]]es by price. */
   private val maxPriceSDGap = 1.0
 
+  /**
+   * When filtering through potential matches for a product (impurity/similarity), what
+   * [[com.sortable.challenge.matching.TokenMatchType.TokenMatchType]] to use
+   * to determine how impure a potential match is.
+   * @see [[Algorithm.filterByImpurity]]
+   */
   private val impurityFilterType = TokenMatchType.modelToTitle
 
+  /**
+   * When filtering through potential matches for a product (by impurity/similarity), what factor should the "perfect"
+   * impurity level be multiplied by to determine the allowed limit.
+   * @see [[Algorithm.filterByImpurity]]
+   */
   private val impurityFilterMultiplier = 2
 
   /**
@@ -55,10 +69,12 @@ object Algorithm {
 
   /*
   At this stage of development it makes more sense to keep limits and other configurable properties within the simple
-  functions that make up the bulk of decision making.
+  functions that make up the bulk of decision making. Once the algorithm matures further, that should be changed.
    */
+  /** @usecase calculates the weight of the penalty based on the magnitude of order change */
   private def ocp(o: Int) = Math.pow(o, 2)
 
+  /** @return total (sum) penalty for a collection magnitudes of order change */
   private def orderChangePenalty(changes: Iterable[Int]) = changes map ocp sum
 
   private def modelOrderChangePenalty(p: PairHolder) =
@@ -68,19 +84,23 @@ object Algorithm {
 
   /** In an ideal match tokens should not swap places or change order. */
   private def orderChange(p: PairHolder) = {
-    val count = p.Global.orderChanges map {_._2 size} sum
+    val count = p.Global.orderChanges map { _._2 size } sum
     val penalty = p.Global.orderChanges map { c => orderChangePenalty(c._2.values) } sum;
     penalty < count // fixme 5
   }
 
+  /** The model tokens should be even more sensitive to changes in order. */
   private def modelOrderChange(p: PairHolder) = modelOrderChangePenalty(p) <= 2
 
-  /** The less tokens that have not been matched, the better. */
+  /** The less tokens that have not been matched, the better. Also impure tokens are counted against the missing
+    * limit. */
   private def missing(p: PairHolder) = {
     if (p.Global.totalTokenCount == 0) true
     else (p.Global.missingCount + p.Global.impureMatchesCount).toDouble / p.Global.totalTokenCount < 0.5
   }
 
+  /** Model tokens are checked independently for missing matches, and are also treated slightly differently if they
+    * contain both numeric and alphabetic tokens. */
   private def missingModel(p: PairHolder) = {
     if (p.Model.tokenCount == 0) true
     else {
@@ -91,11 +111,12 @@ object Algorithm {
     }
   }
 
-  /** Purely numeric tokens that have not been matched. */
+  /** Purely numeric tokens (usually model number) should not be missing in a good match. */
   private def missingNumber(p: PairHolder) = {
     p.Global.totalNumberTokenCount == 0 || p.Global.missingNumberCount.toDouble / p.Global.totalNumberTokenCount <= 0.5
   }
 
+  /** In an ideal match tokens should be matched close to each other. */
   private def dispersion(p: PairHolder) = {
     /* Model tokens play an important role in determining if a listing is a match to a product. Tightly clustered
      model tokens can offset the global (average) dispersion limit */
@@ -106,6 +127,8 @@ object Algorithm {
     p.Global.avgDispersion < 6 + dispersionOffset + presentOffset
   }
 
+  /** In an ideal match model tokens should be clustered even closer together than the global average. Also under
+    * certain conditions, a certain range of dispersion is unfavourable. */
   private def modelDispersion(p: PairHolder) = {
     val nonUnique = p.Model.allMatches diff (p.Model.uniqueMatches toSeq)
     val dispersion = AlgorithmUtils.computeAverageDispersion(nonUnique)
@@ -117,12 +140,14 @@ object Algorithm {
     p.Model.dispersion + extraModelDispersionPenalty < 3
   }
 
-  /** In an ideal match the main object should be in the front of the listings title. */
+  /** In an ideal match the object (the product) should be in the front of the listings title. */
   private def inFront(p: PairHolder) = {
-    val positions = {p.Global.clusters.values flatten}.toSeq map(_._3) sorted;
-    positions.headOption map {_ < 35} getOrElse true
+    val positions = {p.Global.clusters.values flatten }.toSeq map (_._3) sorted;
+    positions.headOption map { _ < 35 } getOrElse true
   }
 
+  /** In an ideal match, if the model has both letters and numbers, there should not be any numbers appearing between
+    * the model's alphabetic tokens and numeric tokens. */
   private def modelModifiers(p: PairHolder): Boolean = {
     if (p.Model.modifierTokens.isEmpty) return true
     // recalculating order change penalty, rather than storing it in PairHolder
@@ -134,19 +159,23 @@ object Algorithm {
     impurityScore < p.Model.modifiersCount
   }
 
+  /** In an ideal match the manufacturer tokens should appear in the title of the listing. At worst the manufacturer
+    * attributes in the listing and product should share at least some letters. */
   private def manufacturer(p: PairHolder) = {
     p.Manufacturer.manufacturerMatchCount.toDouble / p.Manufacturer.tokenCount > 0.5 ||
         p.Manufacturer.manufacturerSimilarity.map(_ >= 0.5).getOrElse(true)
   }
 
   /** In an ideal product/listing match, the token matches from product name should be at the same positions as the
-    *  model matches. */
+    * model matches (given that the product's name and model contain identical tokens). */
   private def clusterDifference(p: PairHolder) = {
     p.Model.clusterDifferenceCount.toDouble / p.Model.tokenCount <= 0.5
   }
 
   /* --- */
 
+  /** @return all [[com.sortable.challenge.matching.PairHolder]] for a particular product that have made it though
+    *         the whole algorithm */
   private[matching] def findMatches(product: Product, listings: Iterable[Listing]):
   Iterable[PairHolder] = {
     val potential = findPotentialMatches(product, listings)
@@ -164,24 +193,40 @@ object Algorithm {
     }
   }
 
-  // fixme remove
-  private[matching] def isPotentialMatch(pair: PairHolder): Boolean = {
+  /**
+   * @return true if a [[com.sortable.challenge.matching.PairHolder]] satisfies all conditions in
+   *         [[com.sortable.challenge.matching.Algorithm.matchingConditions]], false otherwise
+   */
+  private def isPotentialMatch(pair: PairHolder): Boolean = {
     val statuses = matchingConditions map { _(pair) }
     val pass = statuses forall { _ == true }
     if (debugOn) pair.debugConditions = statuses
     pass
   }
 
+  /** @see [[com.sortable.challenge.matching.AlgorithmUtils.filterByPriceGap]]*/
   private def filterByPrice(pairs: List[PairHolder]): List[PairHolder] =
     AlgorithmUtils.filterByPriceGap(pairs, maxPriceSDGap)
 
+  /**
+   * The problem that this filter tries to solve is when a collection of [[PairHolder]]es have been deemed as a match
+   * on one-to-one basis and have passed the price filter, but still contain false positives. One possible solution
+   * to that problem is to determine which matches are the "best" and compare the rest to the "best".
+   * This filter considers the best matches to be the matches that are not missing a single token.
+   * A comparison is made based on strict impurity (a token must not be followed or preceded by a letter or a number)
+   * of a subset of all tokens.
+   * No [[PairHolder]] shall have a number of impurities higher than a certain limit proportional to the number of
+   * impurities of the best [[PairHolder]]es.
+   *
+   * @see [[TokenMatchingUtils.getStrictImpureMatches]]
+   */
   private def filterByImpurity(pairs: Iterable[PairHolder]): Iterable[PairHolder] = {
     AlgorithmUtils.getPerfectImpurityAvg(pairs, impurityFilterType) map { perfectLevel =>
       val limit = perfectLevel * impurityFilterMultiplier
       pairs filter { p =>
         p.Global.clusters get impurityFilterType map { matchesOfType =>
           val impure = TokenMatchingUtils.getStrictImpureMatches(matchesOfType, p.listing).size
-          if (debugOn) p.debug += ("fii" -> impure, "fil" -> limit)
+          if (debugOn) p.debug +=("fii" -> impure, "fil" -> limit)
           impure <= limit
         } getOrElse true;
       }

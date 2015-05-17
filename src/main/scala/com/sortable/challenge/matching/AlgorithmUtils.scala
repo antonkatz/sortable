@@ -27,7 +27,7 @@ import com.sortable.challenge.matching.TokenMatchType.TokenMatchType
 import com.sortable.challenge.matching.TokenMatchingUtils.TokenMatch
 
 /**
- * Functions for testing and scoring matches between products and listings.
+ * Functions to be used in testing and scoring matches between products and listings.
  * These are somewhat algorithm dependant.
  */
 object AlgorithmUtils {
@@ -39,7 +39,7 @@ object AlgorithmUtils {
    * @return [[TokenMatch]]es with no tokens repeating
    */
   def findTightestCluster(tokenMatches: Iterable[TokenMatch]): Iterable[TokenMatch] = {
-    /* fixme this should not try to find the tightest cluster, but the one most similar to the one in the listing.
+    /* todo this should not try to find the tightest cluster, but the one most similar to the one in the listing.
      * "model-num" should match "model num" more readily than "modelnum" */
     val tokenGroups = tokenMatches groupBy (_._2) mapValues (_ toList)
     val groupCount = tokenGroups.size
