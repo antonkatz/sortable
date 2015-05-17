@@ -107,7 +107,7 @@ object Algorithm {
       // short alphabetic model tokens, when missing carry a penalty proportionate to their size
       val missingModifierPenalty =
         p.Model.missingMatches map { t => 1.2 - (t._1.length / 4.0) } filter { _ > 0 } sum;
-      (p.Model.missingModelTokensCount.toDouble + missingModifierPenalty) / p.Model.tokenCount <= 0.5
+      (p.Model.missingTokensCount.toDouble + missingModifierPenalty) / p.Model.tokenCount <= 0.5
     }
   }
 
@@ -162,8 +162,8 @@ object Algorithm {
   /** In an ideal match the manufacturer tokens should appear in the title of the listing. At worst the manufacturer
     * attributes in the listing and product should share at least some letters. */
   private def manufacturer(p: PairHolder) = {
-    p.Manufacturer.manufacturerMatchCount.toDouble / p.Manufacturer.tokenCount > 0.5 ||
-        p.Manufacturer.manufacturerSimilarity.map(_ >= 0.5).getOrElse(true)
+    p.Manufacturer.matchesCount.toDouble / p.Manufacturer.tokenCount > 0.5 ||
+        p.Manufacturer.similarity.map(_ >= 0.5).getOrElse(true)
   }
 
   /** In an ideal product/listing match, the token matches from product name should be at the same positions as the
