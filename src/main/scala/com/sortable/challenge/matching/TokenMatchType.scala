@@ -25,27 +25,30 @@ package com.sortable.challenge.matching
 
 import com.sortable.challenge.TokenizationUtils.Token
 import com.sortable.challenge.{Listing, Product}
-import com.sortable.challenge.matching.TokenMatchingUtils.TokenMatch
 
 /**
- * Example usage: marking which product attribute a token came from and to which listing attribute it was matched.
+ * @usecase marking which product attribute a token came from and to which listing attribute it was matched.
  */
 object TokenMatchType extends Enumeration {
   type TokenMatchType = Value
   val nameToTitle, manufacturerToTitle, modelToTitle, familyToTitle, manufacturerToManufacturer = Value
 
-  def getDestination(matchType: TokenMatchType, listing: Listing): String = matchType match {
+  /** @return the listing's attribute based on the token type. */
+  private[matching] def getDestination(matchType: TokenMatchType, listing: Listing): String = matchType match {
     case this.nameToTitle | this.manufacturerToTitle | this.modelToTitle | this.familyToTitle => listing.title
     case this.manufacturerToManufacturer => listing.manufacturer
   }
 
-  def getTokens(matchType: TokenMatchType, product: Product): Iterable[Token] = matchType match {
+  private def getTokens(matchType: TokenMatchType, product: Product): Iterable[Token] = matchType match {
     case this.nameToTitle => product.getNameTokens
-    case this.manufacturerToTitle|this.manufacturerToManufacturer => product.getManufacturerTokens
+    case this.manufacturerToTitle | this.manufacturerToManufacturer => product.getManufacturerTokens
     case this.modelToTitle => product.getModelTokens
     case this.familyToTitle => product.getFamilyTokens
   }
 
+  /** @return a tuple consisting of a collection of tokens and a string, which are retrieved from the product and the
+    *         listing respectively, based on type. The tokens come from the product, and the string is one of the
+    *         listing's attributes. */
   def getConstituents(matchType: TokenMatchType, product: Product, listing: Listing): (Iterable[Token], String) = {
     (getTokens(matchType, product), getDestination(matchType, listing))
   }
