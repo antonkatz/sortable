@@ -29,8 +29,8 @@ import com.sortable.challenge.TokenizationUtils._
 /**
  * Case classes for convenient representation of underlying data.
  */
-case class Product(private[challenge] val name: String, private[challenge] val manufacturer: String,
-    private[challenge] val model: String, private[challenge] val family: Option[String]) extends DataHolder {
+private[challenge] case class Product(name: String, manufacturer: String, model: String, family: Option[String])
+    extends DataHolder {
   /** Which are used to split the attributes/strings into tokens. */
   private val delimiters = Set(' ', '_', '-', '/', '(', ')')
 
@@ -48,20 +48,20 @@ case class Product(private[challenge] val name: String, private[challenge] val m
   private[challenge] def getFamilyTokens = familyTokens getOrElse Seq()
 }
 
-// used double instead of BigDecimal for performance
-case class Listing(private[challenge] var title: String, private[challenge] var manufacturer: String,
-    private[challenge] val currency: String, private[challenge] val price: Double) extends DataHolder {
+private[challenge] case class Listing(var title: String, var manufacturer: String, currency: String, price: BigDecimal)
+    extends DataHolder {
   /** The original string of the listing, before any processing. */
   private[challenge] val originalTitle = title
+  private[challenge] val originalManufacturer = manufacturer
   title = title.toLowerCase
   manufacturer = manufacturer.toLowerCase
 
   /** Price adjusted for difference in currency values. In other words this is the absolute price used by the
     * algorithm. */
-  private[challenge] val adjustedPrice = PriceConverter.convert(price, currency)
+  private[challenge] val adjustedPrice = PriceConverter.convert(price.toDouble, currency)
 }
 
-trait DataHolder {
+private[challenge] trait DataHolder {
   /**
    * Wrapper around [[com.sortable.challenge.TokenizationUtils.tokenizeWithIndex]] that logs a message if there are
    * problems.

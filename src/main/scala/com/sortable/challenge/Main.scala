@@ -23,17 +23,21 @@ THE SOFTWARE.
 */
 package com.sortable.challenge
 
-import com.sortable.challenge.JsonUtils.{convertToListings, convertToProducts}
+import java.io.FileWriter
+
+import com.sortable.challenge.JsonUtils.{convertToListings, convertToProducts, createResultJsonString}
 import com.sortable.challenge.matching.Algorithm
 import com.sortable.challenge.{SimpleLogger => Log}
 
 import scala.io.Source
 import scala.language.postfixOps
+import scala.util.Try
 
 /**
- * Ties together high level functions at the entry point.
+ * Ties together high level functions at the entry point to the program.
  */
 object Main {
+  /** Takes path to products file and path to listings file as arguments. */
   def main(args: Array[String]): Unit = {
     if (args.length != 2) {
       Log.error("Arguments should be: [products path] [listings path]")
@@ -47,29 +51,45 @@ object Main {
       None
     }
 
-    /*  Find matches. Could remove listings as matches are found (for accuracy and possibly performance),
-    but that would complicate the algorithm beyond the scope of this project */
-    val matches = data map { d => Algorithm.findMatches(d._1 take 30 drop 20, d._2) }
-    matches
-
-    /* Should check if any of the listings have been matched twice indicating problems, but will opt out not to */
+    data map { d =>
+      Algorithm.findMatches(d._1 take 30 drop 25, d._2)
+    } map { writeResults }
   }
 
   private[challenge] def loadDataFromFiles(productPath: String, listingPath: String): Option[(Seq[Product],
       Seq[Listing])] = {
-    val productContents = Source.fromFile(productPath).getLines() toSeq
-    val listingContents = Source.fromFile(listingPath).getLines() toSeq
+    var productContents = Seq[String]()
+    var listingContents = Seq[String]()
+    val load = Try {
+      productContents = Source.fromFile(productPath).getLines() toSeq;
+      listingContents = Source.fromFile(listingPath).getLines() toSeq
+    }
+    if (load.isFailure) {
+      load.failed map { th => Log.error(th, "Files could not be loaded") }
+      return None
+    }
     /* These are not sets because some are identical */
     val products = convertToProducts(productContents)
     val listings = convertToListings(listingContents)
 
-    products map { p => listings map { l =>
+    products flatMap { p => listings map { l =>
       loadWarning(productContents, p, "products")
       loadWarning(listingContents, l, "listings")
       (p, l)
     }
-    } flatten
+    }
   }
+
+  private def writeResults(results: Map[Product, Iterable[Listing]]) = Try {
+    val file = new FileWriter("results/results.txt")
+    results foreach { r =>
+      val json = createResultJsonString(r._1, r._2)
+      file write json
+      file write "\n"
+    }
+    file.flush()
+    file.close()
+  }.failed map { th => Log.error(th, "Could not write results to file") }
 
   private def loadWarning[T](lines: Iterable[String], items: Iterable[T], what: String) =
     if (lines.count(_ nonEmpty) != items.size) {

@@ -29,7 +29,8 @@ import com.sortable.challenge.{Listing, Product}
  * Does 'scoring'/filtering and determines product to listing matches.
  */
 object Algorithm {
-  /** If true, certain conditions/methods will have side effects on [[PairHolder]]s for easier debugging and quality analysis. */
+  /** If true, certain conditions/methods will have side effects on [[PairHolder]]s for easier debugging and quality
+    * analysis. */
   private val debugOn = false
 
   /** A one-on-one product to listing comparison must satisfy all these conditions to move on the next round of 
@@ -64,8 +65,8 @@ object Algorithm {
    * The only entry point into the algorithm.
    * @return a map with each product as key having a collection of [[PairHolder]]s that have been deemed as a match
    */
-  def findMatches(products: Iterable[Product], listings: Iterable[Listing]): Map[Product, Iterable[PairHolder]] =
-    products.par.map({ p => p -> findMatches(p, listings) }).toList.toMap
+  def findMatches(products: Iterable[Product], listings: Iterable[Listing]): Map[Product, Iterable[Listing]] =
+    products.par.map({ p => p -> { findMatches(p, listings) map (_.listing) } }).seq.toMap
 
   /*
   At this stage of development it makes more sense to keep limits and other configurable properties within the simple
@@ -204,7 +205,7 @@ object Algorithm {
     pass
   }
 
-  /** @see [[com.sortable.challenge.matching.AlgorithmUtils.filterByPriceGap]]*/
+  /** @see [[com.sortable.challenge.matching.AlgorithmUtils.filterByPriceGap]] */
   private def filterByPrice(pairs: List[PairHolder]): List[PairHolder] =
     AlgorithmUtils.filterByPriceGap(pairs, maxPriceSDGap)
 

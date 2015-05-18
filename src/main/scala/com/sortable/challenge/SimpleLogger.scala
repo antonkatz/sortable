@@ -28,16 +28,16 @@ package com.sortable.challenge
  */
 object SimpleLogger {
   private val errorsOn = true
-  private val warnOn = true
-  private val debugOn = true
+  private val warnOn = false
+  private val debugOn = false
 
-  def error(msg: String, args: String*) = log("Error", msg, args:_*)
-  def error(throwable: Throwable, msg: String, args: String*) = {
+  private[challenge] def error(msg: String, args: String*) = log("Error", msg, args:_*)
+  private[challenge] def error(throwable: Throwable, msg: String, args: String*) = {
     log("Error", msg, args:_*)
     throwable.printStackTrace()
   }
-  def warn(msg: String, args: String*) = log("Warn", msg, args:_*)
-  def debug(msg: String, args: String*) = log("Debug", msg, args:_*)
+  private[challenge] def warn(msg: String, args: String*) = log("Warn", msg, args:_*)
+  private[challenge] def debug(msg: String, args: String*) = log("Debug", msg, args:_*)
 
   private def log(level: String, msg: String, args: String*) = println({level + ": \t" + msg} format(args:_*))
 }
