@@ -161,7 +161,7 @@ object Algorithm {
     impurityScore < p.Model.modifiersCount
   }
 
-  /** Prevents matching different models numebers, such as "300" matching "3000". */
+  /** Prevents matching different models numbers, such as "300" matching "3000" or "d300". */
   private def impureModel(p: PairHolder) = {
     p.Model.strictImpureMatchesCount.toDouble < p.Model.allMatchesCount
   }
