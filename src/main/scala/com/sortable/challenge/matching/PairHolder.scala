@@ -92,6 +92,12 @@ case class PairHolder(product: Product, listing: Listing) {
       if (nonZeroDispersions.isEmpty) 0.0 else (nonZeroDispersions.values sum) / nonZeroDispersions.size
   }
 
+  /** Results relating to tokens from the name attribute of the product. */
+  object Name {
+    private[matching] val positions = {Global.clusters.getOrElse(TokenMatchType.nameToTitle, Iterable()) } map (_._3)
+    private[matching] val uniqueMatches = Global.clusters getOrElse(nameToTitle, Iterable()) toSeq
+  }
+
   /** Results relating to tokens from the model attribute of the product. */
   object Model {
     /** Non unique matches of model tokens. */
@@ -100,7 +106,6 @@ case class PairHolder(product: Product, listing: Listing) {
 
     /** Model numbers often have a letter or a combination of letters acting as a 'modifier'. */
     private[matching] val modifierTokens = getLettersAroundDigits(product.getModelTokens toSet)
-    private[matching] val impureMatchesCount = Global.impureTokens get modelToTitle map { _.size } getOrElse 0
     private[matching] val missingModifiers = getMissing(modifierTokens.toSet, uniqueMatches.toSet)
     private[matching] val missingMatches = getMissing(product.getModelTokens.toSet, uniqueMatches.toSet)
 
@@ -112,6 +117,9 @@ case class PairHolder(product: Product, listing: Listing) {
     private[matching] val missingTokensCount = tokenCount - uniqueMatches.size
     /** How many cases of at least one digit appearing between an alphabetic token and a numeric token. */
     private[matching] val impurePhraseCount = getImpureNumericPhraseCount(uniqueMatches, listing.title)
+    private[matching] val impureMatchesCount = Global.impureTokens get modelToTitle map { _.size } getOrElse 0
+    private[matching] val strictImpureMatchesCount =
+      getStrictImpureMatches(allMatches, listing, Name.uniqueMatches) size
 
     private[matching] val orderChange = Global.orderChanges get modelToTitle
     /** In an ideal product/listing match, the token matches from product name should be at the same positions as the

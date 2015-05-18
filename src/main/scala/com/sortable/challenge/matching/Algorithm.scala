@@ -37,7 +37,7 @@ object Algorithm {
     * filtering (filtering by price and similarity/impurity). */
   private val matchingConditions = Seq[(PairHolder) => Boolean](
     orderChange, modelOrderChange,
-    missing, missingModel, missingNumber, //4
+    missing, missingModel, missingNumber, impureModel,
     dispersion, modelDispersion, inFront,
     modelModifiers, manufacturer, clusterDifference
   )
@@ -87,7 +87,7 @@ object Algorithm {
   private def orderChange(p: PairHolder) = {
     val count = p.Global.orderChanges map { _._2 size } sum
     val penalty = p.Global.orderChanges map { c => orderChangePenalty(c._2.values) } sum;
-    penalty < count // fixme 5
+    penalty < count
   }
 
   /** The model tokens should be even more sensitive to changes in order. */
@@ -142,9 +142,10 @@ object Algorithm {
   }
 
   /** In an ideal match the object (the product) should be in the front of the listings title. */
-  private def inFront(p: PairHolder) = {
-    val positions = {p.Global.clusters.values flatten }.toSeq map (_._3) sorted;
-    positions.headOption map { _ < 35 } getOrElse true
+  private def inFront(p: PairHolder): Boolean = {
+    if (p.Name.positions.isEmpty) return true
+    val positions = p.Name.positions.toSeq sorted;
+    (positions.sum / positions.length) < 35
   }
 
   /** In an ideal match, if the model has both letters and numbers, there should not be any numbers appearing between
@@ -158,6 +159,11 @@ object Algorithm {
       if (orderChangePenalty >= 1.0) p.Model.impurePhraseCount / orderChangePenalty
       else p.Model.impurePhraseCount
     impurityScore < p.Model.modifiersCount
+  }
+
+  /** Prevents matching different models numebers, such as "300" matching "3000". */
+  private def impureModel(p: PairHolder) = {
+    p.Model.strictImpureMatchesCount.toDouble < p.Model.allMatchesCount
   }
 
   /** In an ideal match the manufacturer tokens should appear in the title of the listing. At worst the manufacturer

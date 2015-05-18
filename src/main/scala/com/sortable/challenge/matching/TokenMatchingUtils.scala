@@ -183,12 +183,16 @@ object TokenMatchingUtils {
 
   /**
    * Determines if a token (numeric or alphabetic) has a letter or a digit preceding or following.
-   * @return a collection of [[TokenMatch]]es that are impure
+   * @param additionalTokens a match might be preceded by a letter or digit, but if that letter or digit is part of
+   *                         another [[TokenMatch]] it should not count as impure
+   * @return a collection of filtered [[TokenMatch]]es (from matches param only) that are impure
    */
-  private[matching] def getStrictImpureMatches(matches: Iterable[TokenMatch], listing: Listing): Iterable[TokenMatch] =
+  private[matching] def getStrictImpureMatches(matches: Iterable[TokenMatch], listing: Listing,
+      additionalTokens: Iterable[TokenMatch] = Iterable()): Iterable[TokenMatch] =
     matches filter { t =>
+      val checkAgainst = Set() ++ matches ++ additionalTokens
       // no unicode
-      def isImpure(pos: Int)(c: Char) = { c.isDigit || c.isLetter } && !matches.exists(_._3 == pos)
+      def isImpure(pos: Int)(c: Char) = { c.isDigit || c.isLetter } && !checkAgainst.exists(_._3 == pos)
       val destinationString = TokenMatchType.getDestination(t._1, listing)
       val front = t._3 + t._4.length
       val back = t._3 - 1

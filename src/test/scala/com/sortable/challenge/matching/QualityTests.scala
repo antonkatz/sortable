@@ -14,6 +14,15 @@ class QualityTests extends FlatSpec with Matchers {
   private val listingPath: String = "data/listings.txt"
   private val data = Main.loadDataFromFiles(productPath, listingPath)
 
+  "Nikon Coolpix 300" should "have 0 (+1) matches" in {
+    val c300 = data flatMap { _._1 find (p => p.name == "Nikon_Coolpix_300") }
+    val matches = c300 map { p => Algorithm.findMatches(p, data.get._2) }
+
+    // this one is hard since p300 is the same mode and d300 is not, but the product has only 300 in the model attribute
+    // better not make false positives though
+    matches.get should have size (0 + 1)
+  }
+
   "Panasonic Lumix DMC-FH1" should "have 11 (-1) matches" in {
     val fh1 = data flatMap { _._1 find (p => p.name == "Panasonic_Lumix_DMC-FH1") }
     val matches = fh1 map { p => Algorithm.findMatches(p, data.get._2) }
@@ -30,12 +39,12 @@ class QualityTests extends FlatSpec with Matchers {
     matches.get should have size (3 - 1)
   }
 
-  "Fujifilm FinePix F70EXR" should "have 18 (-1) matches" in {
+  "Fujifilm FinePix F70EXR" should "have 18 (-1 -2) matches" in {
     val f70 = data flatMap { _._1 find (p => p.name == "Fujifilm_FinePix_F70EXR") }
     val matches = f70 map { p => Algorithm.findMatches(p, data.get._2) }
 
     // one filtered on price
-    matches.get should have size (18 - 1)
+    matches.get should have size (18 - 3)
   }
 
   "Olympus-TG310" should "have 70 (-2) matches" in {
@@ -53,11 +62,11 @@ class QualityTests extends FlatSpec with Matchers {
     matches.get shouldBe empty
   }
 
-  "Canon Digital IXUS 100 IS" should "have 15 matches" in {
+  "Canon Digital IXUS 100 IS" should "have 15 (-2) matches" in {
     val ixus100 = data flatMap { _._1 find (p => p.name == "Canon_Digital_IXUS_100_IS") }
     val matches = ixus100 map { p => Algorithm.findMatches(p, data.get._2) }
 
-    matches.get should have size 15
+    matches.get should have size (15 - 2)
   }
 
   "Fujifilm XP30" should "have 52 matches" in {
@@ -138,11 +147,11 @@ class QualityTests extends FlatSpec with Matchers {
     matches.get should have size (22 - 1)
   }
 
-  "Nikon S640" should "have 13 matches" in {
+  "Nikon S640" should "have 13 (-1)  matches" in {
     val s640 = data flatMap { _._1 find (p => p.model == "S640" && p.manufacturer == "Nikon") }
     val matches = s640 map { p => Algorithm.findMatches(p, data.get._2) }
 
-    matches.get should have size 13
+    matches.get should have size (13 - 1)
   }
 
   "Sanyo DSC-SX1Z" should "have no matches" in {
