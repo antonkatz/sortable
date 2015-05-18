@@ -86,7 +86,7 @@ object AlgorithmUtils {
 
     val alphabeticRanges = TokenMatchingUtils.getLettersAroundDigits(matches) map range
     val numericRanges = matches filter TokenMatchingUtils.isNumeric map range
-    val allRanges = {alphabeticRanges ++ numericRanges }.toSeq sortBy (_._1)
+    val allRanges = {alphabeticRanges ++ numericRanges }.toSeq.distinct sortBy (_._1)
     if (allRanges.size < 2) return 0
 
     val impureZones = allRanges.zip(allRanges.tail) map { p => p._1._2 -> p._2._1 }
