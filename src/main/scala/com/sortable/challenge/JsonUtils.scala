@@ -127,6 +127,6 @@ object JsonUtils {
   private def listingToJson(listing: Listing): JsObject = {
     val price = "%.2f" format listing.price
     Json.obj(LISTING_TITLE -> listing.originalTitle, LISTING_MANUFACTURER -> listing.originalManufacturer,
-      LISTING_CURRENCY -> listing.currency, LISTING_PRICE -> listing.price)
+      LISTING_CURRENCY -> listing.currency, LISTING_PRICE -> price)
   }
 }

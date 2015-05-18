@@ -23,7 +23,7 @@ THE SOFTWARE.
 */
 package com.sortable.challenge
 
-import java.io.FileWriter
+import java.io.{File, FileWriter}
 
 import com.sortable.challenge.JsonUtils.{convertToListings, convertToProducts, createResultJsonString}
 import com.sortable.challenge.matching.Algorithm
@@ -82,14 +82,17 @@ object Main {
   }
 
   private def writeResults(results: Map[Product, Iterable[Listing]]) = Try {
-    val file = new FileWriter("results/results.txt")
+    val dirName = "results/"
+    val dir = new File(dirName)
+    dir.mkdirs()
+    val out = new FileWriter(dirName + "results.txt")
     results foreach { r =>
       val json = createResultJsonString(r._1, r._2)
-      file write json
-      file write "\n"
+      out write json
+      out write "\n"
     }
-    file.flush()
-    file.close()
+    out.flush()
+    out.close()
   }.failed map { th => Log.error(th, "Could not write results to file") }
 
   private def loadWarning[T](lines: Iterable[String], items: Iterable[T], what: String) =
