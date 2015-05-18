@@ -23,7 +23,7 @@ THE SOFTWARE.
 */
 package com.sortable.challenge.matching
 
-import com.sortable.challenge.{Listing, Product}
+import com.sortable.challenge.{SimpleLogger, Listing, Product}
 
 /**
  * Does 'scoring'/filtering and determines product to listing matches.
@@ -179,6 +179,7 @@ object Algorithm {
     *         the whole algorithm */
   private[matching] def findMatches(product: Product, listings: Iterable[Listing]):
   Iterable[PairHolder] = {
+    SimpleLogger.processing()
     val potential = findPotentialMatches(product, listings)
     val filteredByPrice = filterByPrice(potential.toList)
     val filteredByImpurity = filterByImpurity(filteredByPrice)

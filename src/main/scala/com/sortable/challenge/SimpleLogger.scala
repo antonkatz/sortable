@@ -38,6 +38,8 @@ object SimpleLogger {
   }
   private[challenge] def warn(msg: String, args: String*) = log("Warn", msg, args:_*)
   private[challenge] def debug(msg: String, args: String*) = log("Debug", msg, args:_*)
+  private[challenge] def msg(msg: String, args: String*) = log("Message", msg, args:_*)
+  private[challenge] def processing() = print(".")
 
   private def log(level: String, msg: String, args: String*) = println({level + ": \t" + msg} format(args:_*))
 }

@@ -51,8 +51,9 @@ object Main {
       None
     }
 
+    Log.msg("Processing started")
     data map { d =>
-      Algorithm.findMatches(d._1 take 30 drop 25, d._2)
+      Algorithm.findMatches(d._1, d._2)
     } map { writeResults }
   }
 
